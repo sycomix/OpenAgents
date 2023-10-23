@@ -82,8 +82,8 @@ class ConversationStringBufferMemory(BaseMemory):
             output_key = list(outputs.keys())[0]
         else:
             output_key = self.output_key
-        human = f"{self.human_prefix}: " + inputs[prompt_input_key]
-        ai = f"{self.ai_prefix}: " + outputs[output_key]
+        human = f"{self.human_prefix}: {inputs[prompt_input_key]}"
+        ai = f"{self.ai_prefix}: {outputs[output_key]}"
         self.buffer += "\n" + "\n".join([human, ai])
 
     def clear(self) -> None:
@@ -158,10 +158,8 @@ class ConversationReActBufferMemory(BaseChatMemory):
                 intermediate_message = ""
                 for action, full_observation in outputs["intermediate_steps"]:
                     intermediate_message += "\n{\n"
-                    intermediate_message += (
-                        '\t"action": "{}"'.format(action.tool) + "\n"
-                    )  # todo: move to schema, as well as the one in prompt
-                    intermediate_message += '\t"action_input": "{}"'.format(action.tool_input) + "\n"
+                    intermediate_message += f'\t"action": "{action.tool}"' + "\n"
+                    intermediate_message += f'\t"action_input": "{action.tool_input}"' + "\n"
                     intermediate_message += "}\n"
                     observation = full_observation
                     if isinstance(full_observation, DataModel):
@@ -169,7 +167,7 @@ class ConversationReActBufferMemory(BaseChatMemory):
                         observation = MessageDataModel.extract_tool_response_for_llm(
                             llm_raw_observation, tool_style=self.style
                         )
-                    intermediate_message += "{}\n".format(observation)
+                    intermediate_message += f"{observation}\n"
                 output = intermediate_message + outputs[list(outputs.keys())[0]]
 
                 return inputs[prompt_input_key], output

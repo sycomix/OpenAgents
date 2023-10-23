@@ -101,7 +101,7 @@ class ConversationalWebotChatAgent(ConversationalChatAgent):  # fixme: change it
         format_instructions = format_instructions.format(tool_names=tool_names)
 
         # system message
-        system_message = system_message + f"{tool_strings}\n\n{format_instructions}"
+        system_message += f"{tool_strings}\n\n{format_instructions}"
 
         # human input
         final_prompt = human_message
@@ -142,7 +142,7 @@ class ConversationalWebotChatAgent(ConversationalChatAgent):  # fixme: change it
 
         content_str = "\n".join(content)
         thoughts.append(AIMessage(content=content_str))
-        if self.continue_model is not None and len(intermediate_steps) != 0:
+        if self.continue_model is not None and intermediate_steps:
             thoughts.append(HumanMessage(content=fake_continue_prompt[self.continue_model]))
         return thoughts
 

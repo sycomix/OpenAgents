@@ -19,12 +19,13 @@ def find_potential_templates(node, possible_templates):
         attributes = {attr: node[attr] for attr in node.attrs}
         children = []
         for child in node.children:
-            child_json = find_potential_templates(child, possible_templates)
-            if child_json:
+            if child_json := find_potential_templates(
+                child, possible_templates
+            ):
                 children.append(child_json)
 
         # Max depth of the tree
-        depth = max([c["depth"] for c in children], default=0) + 1
+        depth = max((c["depth"] for c in children), default=0) + 1
 
         # Create a template hash
         template_hash = f"{node.name}#{sorted(attributes.keys())}#{[c['template_hash'] for c in children]}"
@@ -52,8 +53,7 @@ def find_potential_templates(node, possible_templates):
 
         return json_node
     elif isinstance(node, str):  # Text node
-        text = node.strip()
-        if text:
+        if text := node.strip():
             return {"type": "TEXT", "content": text, "template_hash": "TEXT", "template_values": [text], "depth": 0}
     return None
 
@@ -85,47 +85,48 @@ def get_placeholder(template, value_index):
 def create_template_tree(node, templates, render_for_template, current_value_index=0):
     """Convert the DOM into processed template tree."""
     if node["type"] == "TEXT":
-        if current_value_index in render_for_template["valuesToInline"]:
-            return {
+        return (
+            {
                 "template": node["content"],
                 "valueIndex": current_value_index + 1,
                 "consumedTemplates": [node["templateHash"]],
             }
-        else:
-            return {
-                "template": get_placeholder(render_for_template, current_value_index),
+            if current_value_index in render_for_template["valuesToInline"]
+            else {
+                "template": get_placeholder(
+                    render_for_template, current_value_index
+                ),
                 "valueIndex": current_value_index + 1,
                 "consumedTemplates": [node["templateHash"]],
             }
-
-    else:
-        updated_value_index = current_value_index
-        consumed_templates = [node["templateHash"]]
-
-        attrs = "".join(
-            [
-                f' {k}="{v}"'
-                if updated_value_index + i in render_for_template["valuesToInline"]
-                else f" {k}={get_placeholder(render_for_template, updated_value_index + i)}"
-                for i, (k, v) in enumerate(node["attributes"].items())
-            ]
         )
-        updated_value_index += len(node["attributes"])
+    updated_value_index = current_value_index
+    consumed_templates = [node["templateHash"]]
 
-        children = []
-        for child in node["children"]:
-            child_template = create_template_tree(child, templates, render_for_template, updated_value_index)
-            children.append(child_template["template"])
-            updated_value_index = child_template["valueIndex"]
-            consumed_templates.extend(child_template["consumedTemplates"])
+    attrs = "".join(
+        [
+            f' {k}="{v}"'
+            if updated_value_index + i in render_for_template["valuesToInline"]
+            else f" {k}={get_placeholder(render_for_template, updated_value_index + i)}"
+            for i, (k, v) in enumerate(node["attributes"].items())
+        ]
+    )
+    updated_value_index += len(node["attributes"])
 
-        return {
-            "template": f"<{node['tagName'].lower()}{attrs}/>"
-            if not children
-            else f"<{node['tagName'].lower()}{attrs}>{''.join(children)}</{node['tagName'].lower()}>",
-            "valueIndex": updated_value_index,
-            "consumedTemplates": consumed_templates,
-        }
+    children = []
+    for child in node["children"]:
+        child_template = create_template_tree(child, templates, render_for_template, updated_value_index)
+        children.append(child_template["template"])
+        updated_value_index = child_template["valueIndex"]
+        consumed_templates.extend(child_template["consumedTemplates"])
+
+    return {
+        "template": f"<{node['tagName'].lower()}{attrs}/>"
+        if not children
+        else f"<{node['tagName'].lower()}{attrs}>{''.join(children)}</{node['tagName'].lower()}>",
+        "valueIndex": updated_value_index,
+        "consumedTemplates": consumed_templates,
+    }
 
 
 def serialize_tree(node, templates):
@@ -182,5 +183,4 @@ class HTMLDataModel(DataModel):
 
     def get_llm_side_data(self) -> str:
         html_string = self.raw_data
-        truncated_html_string = truncate_html_by_tokens(html_string, 5000, "gpt-4")
-        return truncated_html_string
+        return truncate_html_by_tokens(html_string, 5000, "gpt-4")

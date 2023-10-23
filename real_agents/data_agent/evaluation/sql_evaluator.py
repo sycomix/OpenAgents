@@ -28,8 +28,7 @@ class SQLEvaluator:
     @staticmethod
     def parse_command(program: str) -> List[str]:
         """patchify the code"""
-        program_lines = program.strip().split("\n")
-        return program_lines
+        return program.strip().split("\n")
 
     def run(self, program: str, environment: SQLDatabase) -> Any:
         """run generated code in certain environment"""

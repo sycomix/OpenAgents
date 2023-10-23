@@ -58,7 +58,7 @@ class VariableRegister:
                     f"Reuse the {self.counter_name}({self.redis_client.get(self.counter_name)}) and {self.variables_name}."
                 )
         else:
-            raise ValueError("Unknown backend option: {}".format(self.backend))
+            raise ValueError(f"Unknown backend option: {self.backend}")
 
     def add_variable(self, variable: Any) -> int:
         if self.backend == LOCAL:
@@ -109,15 +109,14 @@ def load_grounding_source(file_path: str) -> Any:
                 raise ValueError("Only csv files are allowed in the directory")
     elif suffix == ".csv":
         grounding_source = pd.read_csv(file_path, index_col=False)
-    elif suffix == ".tsv" or suffix == ".txt":
+    elif suffix in [".tsv", ".txt"]:
         grounding_source = pd.read_csv(file_path, sep="\t")
-    elif suffix == ".xlsx" or suffix == ".xls":
+    elif suffix in [".xlsx", ".xls"]:
         grounding_source = pd.read_excel(file_path)
-    elif suffix == ".db" or suffix == ".sqlite":
+    elif suffix in [".db", ".sqlite"]:
         engine = create_engine(f"sqlite:///{file_path}")
-        grounding_source = SQLDatabase(engine)
-        return grounding_source
-    elif suffix == ".png" or suffix == ".jpg" or suffix == ".jpeg":
+        return SQLDatabase(engine)
+    elif suffix in [".png", ".jpg", ".jpeg"]:
         img = Image.open(file_path)
         with open(file_path, "rb") as image2string:
             converted_string = "data:image/png;base64," + base64.b64encode(image2string.read()).decode("utf-8")
@@ -138,13 +137,13 @@ def get_data_model_cls(file_path: str) -> DataModel:
         data_model_cls = KaggleDataModel
     elif suffix == ".csv":
         data_model_cls = TableDataModel
-    elif suffix == ".tsv" or suffix == ".txt":
+    elif suffix in [".tsv", ".txt"]:
         raise NotImplementedError("Not implemented yet")
-    elif suffix == ".xlsx" or suffix == ".xls":
+    elif suffix in [".xlsx", ".xls"]:
         data_model_cls = TableDataModel
-    elif suffix == ".sqlite" or suffix == ".db":
+    elif suffix in [".sqlite", ".db"]:
         data_model_cls = DatabaseDataModel
-    elif suffix == ".jpeg" or suffix == ".png" or suffix == ".jpg":
+    elif suffix in [".jpeg", ".png", ".jpg"]:
         data_model_cls = ImageDataModel
     else:
         raise ValueError("File type not allowed to be set as grounding source")
@@ -155,13 +154,13 @@ def get_data_summary_cls(file_path: str) -> DataSummaryExecutor:
     suffix = Path(file_path).suffix
     if suffix == ".csv":
         data_summary_cls = TableSummaryExecutor
-    elif suffix == ".tsv" or suffix == ".txt":
+    elif suffix in [".tsv", ".txt"]:
         raise NotImplementedError("Not implemented yet")
-    elif suffix == ".xlsx" or suffix == ".xls":
+    elif suffix in [".xlsx", ".xls"]:
         data_summary_cls = TableSummaryExecutor
-    elif suffix == ".sqlite" or suffix == ".db":
+    elif suffix in [".sqlite", ".db"]:
         data_summary_cls = TableSummaryExecutor
-    elif suffix == ".jpeg" or suffix == ".png" or suffix == ".jpg":
+    elif suffix in [".jpeg", ".png", ".jpg"]:
         data_summary_cls = ImageSummaryExecutor
     else:
         raise ValueError("File type not allowed to be set as grounding source")
@@ -172,50 +171,35 @@ def allowed_file(filename: Union[str, Path]) -> bool:
     if isinstance(filename, str):
         filename = Path(filename)
     suffix = filename.suffix[1:]
-    if suffix in ALLOW_EXTENSIONS:
-        return True
-    else:
-        return False
+    return suffix in ALLOW_EXTENSIONS
 
 
 def is_table_file(filename: Union[str, Path]) -> bool:
     if isinstance(filename, str):
         filename = Path(filename)
     suffix = filename.suffix[1:]
-    if suffix in TABLE_EXTENSIONS:
-        return True
-    else:
-        return False
+    return suffix in TABLE_EXTENSIONS
 
 
 def is_document_file(filename: Union[str, Path]) -> bool:
     if isinstance(filename, str):
         filename = Path(filename)
     suffix = filename.suffix[1:]
-    if suffix in DOCUMENT_EXTENSIONS:
-        return True
-    else:
-        return False
+    return suffix in DOCUMENT_EXTENSIONS
 
 
 def is_sqlite_file(filename: Union[str, Path]) -> bool:
     if isinstance(filename, str):
         filename = Path(filename)
     suffix = filename.suffix[1:]
-    if suffix in DATABASE_EXTENSIONS:
-        return True
-    else:
-        return False
+    return suffix in DATABASE_EXTENSIONS
 
 
 def is_image_file(filename: Union[str, Path]) -> bool:
     if isinstance(filename, str):
         filename = Path(filename)
     suffix = filename.suffix[1:]
-    if suffix in IMAGE_EXTENSIONS:
-        return True
-    else:
-        return False
+    return suffix in IMAGE_EXTENSIONS
 
 
 def remove_nan(file_path: str) -> None:
@@ -225,22 +209,20 @@ def remove_nan(file_path: str) -> None:
     For columns that have both nan values and non-nan values, we replace nan values with the mean (number type)
     or the mode (other type)
     """
-    if file_path.endswith("csv"):
-        df = pd.read_csv(file_path)
-        columns = list(df.columns)
-        nan_columns = []
-        for c in columns:
-            if all(list(df[c].isnull())):
-                nan_columns.append(c)
-        df.drop(columns=nan_columns, inplace=True)
-        columns = list(df.columns)
-        for c in columns:
-            try:
-                fillin_value = df[c].mean()
-            except Exception:
-                fillin_value = df[c].mode()
-            df[c].fillna(value=fillin_value, inplace=True)
-        df.to_csv(file_path)
+    if not file_path.endswith("csv"):
+        return
+    df = pd.read_csv(file_path)
+    columns = list(df.columns)
+    nan_columns = [c for c in columns if all(list(df[c].isnull()))]
+    df.drop(columns=nan_columns, inplace=True)
+    columns = list(df.columns)
+    for c in columns:
+        try:
+            fillin_value = df[c].mean()
+        except Exception:
+            fillin_value = df[c].mode()
+        df[c].fillna(value=fillin_value, inplace=True)
+    df.to_csv(file_path)
 
 
 def is_valid_input(user_intent: str, max_token_limit: int = 2000) -> bool:
@@ -253,21 +235,20 @@ def error_rendering(error_message: str) -> str:
     """Map (certain) error message to frontend rendering form, otherwise show
     'internal backend  error'. Currently, only handle OpenAI error message.
     """
-    if "openai" in error_message:
-        if "Timeout" in error_message:
-            return "OpenAI timeout error. Please try again."
-        elif "RateLimitError" in error_message:
-            return "OpenAI rate limit error. Please try again."
-        elif "APIConnectionError" in error_message:
-            return "OpenAI API connection error. Please try again."
-        elif "InvalidRequestError" in error_message:
-            return "OpenAI invalid request error. Please try again."
-        elif "AuthenticationError" in error_message:
-            return "OpenAI authentication error. Please try again."
-        elif "ServiceUnavailableError" in error_message:
-            return "OpenAI service unavailable error. Please try again."
-    else:
+    if "openai" not in error_message:
         return "Internal backend error. Please try again."
+    if "Timeout" in error_message:
+        return "OpenAI timeout error. Please try again."
+    elif "RateLimitError" in error_message:
+        return "OpenAI rate limit error. Please try again."
+    elif "APIConnectionError" in error_message:
+        return "OpenAI API connection error. Please try again."
+    elif "InvalidRequestError" in error_message:
+        return "OpenAI invalid request error. Please try again."
+    elif "AuthenticationError" in error_message:
+        return "OpenAI authentication error. Please try again."
+    elif "ServiceUnavailableError" in error_message:
+        return "OpenAI service unavailable error. Please try again."
 
 
 def init_log(**sink_channel):

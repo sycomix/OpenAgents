@@ -56,5 +56,4 @@ class ChatExecutor(BaseExecutor):
             memory=self.memory,
         )
         result = method.predict(input=user_intent)
-        output = {self.output_key: result}
-        return output
+        return {self.output_key: result}

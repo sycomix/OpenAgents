@@ -84,8 +84,12 @@ Begin."
             template=self.SUMMARY_PROMPT_TEMPLATE,
         )
         method = LLMChain(llm=llm, prompt=summary_prompt_template)
-        result = method.run({"table_info": grounding_source.get_llm_side_data(), "num_insights": num_insights})
-        return result
+        return method.run(
+            {
+                "table_info": grounding_source.get_llm_side_data(),
+                "num_insights": num_insights,
+            }
+        )
 
     def _parse_output(self, content: str) -> Tuple[str, str]:
         """Parse the output of the LLM to get the data summary."""
@@ -135,27 +139,26 @@ Begin.
         num_insights: int = 3,
     ) -> Dict[str, Any]:
         summary = ""
-        if isinstance(grounding_source, ImageDataModel):
-            # Basic summary
-            raw_data = grounding_source.raw_data
-            img_size, img_mode, img_format = raw_data["size"], raw_data["mode"], raw_data["format"]
-            summary += f"Your image **{grounding_source.simple_filename}** is a {img_size[0]}x{img_size[1]} {img_mode} image in {img_format} format.\n"
-
-            # Intelligent summary
-            if use_intelligent_summary:
-                intelligent_summary = self._intelligent_summary(
-                    grounding_source,
-                    num_insights=num_insights,
-                    llm=llm,
-                )
-                _, suggestions = self._parse_output(intelligent_summary)
-                summary += "\n" + "Here are some additional insights to enhance your understanding of the image"
-                summary += "\n" + suggestions
-
-            for stream_token in summary.split(" "):
-                self.stream_handler.on_llm_new_token(stream_token)
-        else:
+        if not isinstance(grounding_source, ImageDataModel):
             raise ValueError(f"Unsupported data summary for grounding source type: {type(grounding_source)}")
+        # Basic summary
+        raw_data = grounding_source.raw_data
+        img_size, img_mode, img_format = raw_data["size"], raw_data["mode"], raw_data["format"]
+        summary += f"Your image **{grounding_source.simple_filename}** is a {img_size[0]}x{img_size[1]} {img_mode} image in {img_format} format.\n"
+
+        # Intelligent summary
+        if use_intelligent_summary:
+            intelligent_summary = self._intelligent_summary(
+                grounding_source,
+                num_insights=num_insights,
+                llm=llm,
+            )
+            _, suggestions = self._parse_output(intelligent_summary)
+            summary += "\n" + "Here are some additional insights to enhance your understanding of the image"
+            summary += "\n" + suggestions
+
+        for stream_token in summary.split(" "):
+            self.stream_handler.on_llm_new_token(stream_token)
         return summary
 
     def _intelligent_summary(self, grounding_source: ImageDataModel, num_insights: int, llm: BaseLanguageModel) -> str:
@@ -165,8 +168,12 @@ Begin.
             template=self.SUMMARY_PROMPT_TEMPLATE,
         )
         method = LLMChain(llm=llm, prompt=summary_prompt_template)
-        result = method.run({"img_info": grounding_source.get_llm_side_data(), "num_insights": num_insights})
-        return result
+        return method.run(
+            {
+                "img_info": grounding_source.get_llm_side_data(),
+                "num_insights": num_insights,
+            }
+        )
 
     def _parse_output(self, content: str) -> Tuple[str, str]:
         """Parse the output of the LLM to get the data summary."""

@@ -16,8 +16,7 @@ class ImageDataModel(DataModel):
             import os
 
             self.simple_filename = os.path.basename(self.raw_data_path)
-        string = "image: " + self.simple_filename
-        return string
+        return f"image: {self.simple_filename}"
 
     def get_human_side_data(self) -> Any:
         return self.raw_data["base64_string"]

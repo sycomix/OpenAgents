@@ -30,32 +30,32 @@ class WebBrowsingExecutor:
 
     @property
     def finish(self):
-        return True if len(self.actions_taken) > 0 and "finish" in self.actions_taken[-1] else False
+        return len(self.actions_taken) > 0 and "finish" in self.actions_taken[-1]
 
     @property
     def interrupt(self):
-        return True if len(self.actions_taken) > 0 and "interrupt" in self.actions_taken[-1] else False
+        return len(self.actions_taken) > 0 and "interrupt" in self.actions_taken[-1]
 
     @property
     def error(self):
-        return True if len(self.actions_taken) > 0 and "error" in self.actions_taken[-1] else False
+        return len(self.actions_taken) > 0 and "error" in self.actions_taken[-1]
 
     @property
     def fail(self):
-        return True if len(self.actions_taken) > 0 and "fail" in self.actions_taken[-1] else False
+        return len(self.actions_taken) > 0 and "fail" in self.actions_taken[-1]
 
     @property
     def action_history(self):
         if self.mode == "basic":
             action_history = "Action: "
             for action in self.actions_taken:
-                action_history += action + " -> "
+                action_history += f"{action} -> "
             return action_history
         elif self.mode == "react":
-            action_history = ""
-            for thought, action in zip(self.thoughts_taken, self.actions_taken):
-                action_history += thought + " -> " + action + " -> "
-            return action_history
+            return "".join(
+                f"{thought} -> {action} -> "
+                for thought, action in zip(self.thoughts_taken, self.actions_taken)
+            )
         else:
             raise ValueError(f"The mode {self.mode} is not supported")
 

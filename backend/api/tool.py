@@ -31,12 +31,14 @@ def get_tool_list() -> Response:
             "description": plugin["description"],
             "icon": plugin["icon"],
             "require_api_key": plugin["require_api_key"],
+            "api_key": search_plugin[0]["api_key"]
+            if (
+                search_plugin := [
+                    i for i in api_key_info if i["tool_id"] == plugin["id"]
+                ]
+            )
+            else None,
         }
-        search_plugin = [i for i in api_key_info if i["tool_id"] == plugin["id"]]
-        if len(search_plugin) > 0:
-            plugin_info["api_key"] = search_plugin[0]["api_key"]
-        else:
-            plugin_info["api_key"] = None
         tool_list.append(plugin_info)
     return jsonify(tool_list)
 

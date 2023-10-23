@@ -20,7 +20,7 @@ class JSON_PDA:
             # Add the escaped character to the current key or value and return
             if self.state == "open_key_quote":
                 self.current_key += char
-            elif self.state == "open_value_quote" or self.state == "open_value_quote_brace":
+            elif self.state in ["open_value_quote", "open_value_quote_brace"]:
                 self.current_value += char
             self.escape_next = False
             return
@@ -75,23 +75,23 @@ class JSON_PDA:
                 self.stack.pop()
                 if len(self.stack) == 0:
                     self.state = "start"
-        elif self.state == "open_brace" or self.state == "comma":
+        elif self.state in ["open_brace", "comma"]:
             if char == '"':
                 self.stack.append('"')
                 self.state = "open_key_quote"
                 self.current_key = ""
-        elif self.state == "open_key_quote" or self.state == "open_value_quote":
-            if char != '"':
-                if self.state == "open_key_quote":
-                    self.current_key += char
-                else:
-                    self.current_value += char
-            else:
+        elif self.state in ["open_key_quote", "open_value_quote"]:
+            if char == '"':
                 self.stack.pop()
-                if self.state == "open_key_quote":
-                    self.state = "close_key_quote"
-                else:
-                    self.state = "close_value_quote"
+                self.state = (
+                    "close_key_quote"
+                    if self.state == "open_key_quote"
+                    else "close_value_quote"
+                )
+            elif self.state == "open_key_quote":
+                self.current_key += char
+            else:
+                self.current_value += char
         elif self.state == "open_value_quote_brace":
             if char == "{":
                 self.stack.append("{")
@@ -196,7 +196,9 @@ class AgentStreamingStdOutCallbackHandler(StreamingStdOutCallbackHandler):
                     _type = "plain"
                     self._normal_json = True
 
-                if self.pda.state == "open_key_quote":
+                    self._in_key = False
+
+                elif self.pda.state == "open_key_quote":
                     if self._in_key:
                         self.json_key += char
                         _type = "key"
@@ -204,7 +206,10 @@ class AgentStreamingStdOutCallbackHandler(StreamingStdOutCallbackHandler):
                 else:
                     self._in_key = False
 
-                if self.pda.state == "open_value_quote" or self.pda.state == "open_value_quote_brace":
+                if self.pda.state in [
+                    "open_value_quote",
+                    "open_value_quote_brace",
+                ]:
                     if self._in_value:
                         _type = self.json_key
                     self._in_value = True
@@ -214,9 +219,19 @@ class AgentStreamingStdOutCallbackHandler(StreamingStdOutCallbackHandler):
                     self._in_value = False
 
                 if self.pda.state == "close_key_quote":
-                    # Normal json block
+                    if self.json_key == "action":
+                        self.action_key_appear = True
 
-                    if self.json_key not in ["action", "action_input"]:
+                    elif self.json_key == "action_input":
+                        if self.action_key_appear:
+                            # Action json block
+                            for char_item in self.json_tmp_stack:
+                                char_item["llm_call_id"] = self.llm_call_id
+                                self.for_display.append(char_item)
+                            self.json_tmp_stack = []
+                            self._direct_display = True
+
+                    else:
                         for char_item in self.json_tmp_stack:
                             self.for_display.append(
                                 {"text": char_item["text"], "type": "plain", "llm_call_id": self.llm_call_id}
@@ -225,18 +240,6 @@ class AgentStreamingStdOutCallbackHandler(StreamingStdOutCallbackHandler):
                         self.for_display.append({"text": char, "type": "plain", "llm_call_id": self.llm_call_id})
                         self._normal_json = True
                         continue
-
-                    else:
-                        if self.json_key == "action":
-                            self.action_key_appear = True
-
-                        elif self.json_key == "action_input" and self.action_key_appear:
-                            # Action json block
-                            for char_item in self.json_tmp_stack:
-                                char_item["llm_call_id"] = self.llm_call_id
-                                self.for_display.append(char_item)
-                            self.json_tmp_stack = []
-                            self._direct_display = True
 
             else:
                 for char_item in self.json_tmp_stack:

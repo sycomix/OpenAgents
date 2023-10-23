@@ -89,13 +89,13 @@ class APICallingChain(Chain, BaseModel):
     @property
     def need_auth(self):
         """Whether the API call needs authentication."""
-        return not self.meta_info["manifest"]["auth"]["type"] in [
+        return self.meta_info["manifest"]["auth"]["type"] not in [
             None,
             "None",
             "none",
             "Null",
             "null",
-        ]  # the value of type is not null in ai-plugin.json
+        ]
 
     @backoff.on_exception(backoff.expo, Exception, max_tries=10, max_time=20)
     def call_api(self, endpoint, input_json):
@@ -116,9 +116,7 @@ class APICallingChain(Chain, BaseModel):
         except Exception as e:
             raise APICallingError(f"{e}")
 
-        compressed_output = self.endpoint2output_model[endpoint]({"out": api_output})[
-            "out"]
-        return compressed_output
+        return self.endpoint2output_model[endpoint]({"out": api_output})["out"]
 
     def parse_response(self, response: str):
         """Parse the endpoint and input_json"""
@@ -131,9 +129,7 @@ class APICallingChain(Chain, BaseModel):
             input_json = json_content["input_json"]
         except:
             pattern = r"```json\n(.+?)\n```" if "```json" in response else r"```\n(.+?)\n```"
-            match = re.search(pattern, response, re.DOTALL)
-
-            if match:
+            if match := re.search(pattern, response, re.DOTALL):
                 try:
                     json_content = json5.loads(match.group(1))
                     endpoint = json_content["endpoint"]
@@ -185,11 +181,15 @@ class APICallingChain(Chain, BaseModel):
               vars_to_pass: Dict) -> None:
         response_content = (
             self.llm_basic_chain.run(
-                **{"specs_str": self.specs_str, "input_str": input_str})
-            if len(trial_history) == 0
+                **{"specs_str": self.specs_str, "input_str": input_str}
+            )
+            if not trial_history
             else self.llm_retry_chain.run(
-                **{"specs_str": self.specs_str, "input_str": input_str,
-                   "trial_history": trial_history}
+                **{
+                    "specs_str": self.specs_str,
+                    "input_str": input_str,
+                    "trial_history": trial_history,
+                }
             )
         )
 
@@ -264,18 +264,17 @@ class APICallingChain(Chain, BaseModel):
                 count += 1
                 continue
 
-        if count == self.retry_times:
-            if "errors" in trial_history[-1]:
-                return {"endpoint": vars_to_pass["endpoint"],
-                        "input_json": vars_to_pass["input_json"],
-                        "api_output": trial_history[-1]["errors"]}
-            else:
-                return {"endpoint": vars_to_pass["endpoint"]} | (
-                    trial_history[-1])  # return the last trial history
-        else:
+        if count != self.retry_times:
             return {"endpoint": vars_to_pass["endpoint"],
                     "input_json": vars_to_pass["input_json"],
                     "api_output": vars_to_pass["api_output"]}
+        if "errors" in trial_history[-1]:
+            return {"endpoint": vars_to_pass["endpoint"],
+                    "input_json": vars_to_pass["input_json"],
+                    "api_output": trial_history[-1]["errors"]}
+        else:
+            return {"endpoint": vars_to_pass["endpoint"]} | (
+                trial_history[-1])  # return the last trial history
 
     @classmethod
     def from_llm_and_plugin(

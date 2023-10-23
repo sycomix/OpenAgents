@@ -22,8 +22,9 @@ class TableDataModel(DataModel):
         table_data = self.raw_data
         table_name = self.raw_data_name
         table_path = self.raw_data_path
-        formatted_table = serialize_df(table_data, table_name, table_path, serialize_method, num_visible_rows)
-        return formatted_table
+        return serialize_df(
+            table_data, table_name, table_path, serialize_method, num_visible_rows
+        )
 
     def get_human_side_data(self, mode: str = "HEAD") -> Any:
         # We support different mode for the front-end display.

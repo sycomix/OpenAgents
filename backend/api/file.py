@@ -55,12 +55,15 @@ def _path_tree_for_react_dnd_treeview(tree: list, id_to_path_dict: dict, path: s
         item_path = os.path.join(path, item)
         droppable = os.path.isdir(item_path)
         idx = len(tree) + 1
-        tree.append({
-            "id": idx,
-            "parent": parent,
-            "droppable": droppable,
-            "text": item,
-            "highlight": True if item_path in highlighted_files else False})
+        tree.append(
+            {
+                "id": idx,
+                "parent": parent,
+                "droppable": droppable,
+                "text": item,
+                "highlight": item_path in highlighted_files,
+            }
+        )
         id_to_path_dict[idx] = item_path
         if os.path.isdir(item_path):
             _path_tree_for_react_dnd_treeview(tree, id_to_path_dict, item_path, idx)
@@ -69,9 +72,9 @@ def _path_tree_for_react_dnd_treeview(tree: list, id_to_path_dict: dict, path: s
 
 def secure_filename(filename: str) -> str:
     keep_characters = ('.', '_')
-    filename = "".join(
-        c for c in filename if c.isalnum() or c in keep_characters).rstrip()
-    return filename
+    return "".join(
+        c for c in filename if c.isalnum() or c in keep_characters
+    ).rstrip()
 
 
 @app.route("/api/upload", methods=["POST"])
@@ -135,8 +138,7 @@ def _get_file_path_from_node(folder: str, file_node: dict) -> Any:
     path_tree_list: list = []
     id_to_path_dict = {0: folder}
     _path_tree_for_react_dnd_treeview(path_tree_list, id_to_path_dict, folder, 0)
-    path = id_to_path_dict[file_node["id"]]
-    return path
+    return id_to_path_dict[file_node["id"]]
 
 
 @app.route("/api/file_system/apply", methods=["POST"])
@@ -165,11 +167,11 @@ def apply_to_conversation() -> Response:
             )
             grounding_source_dict[file_path] = data_model
             # Add uploaded file in chat memory
-            message_list = message_pool.get_pool_info_with_id(user_id, chat_id,
-                                                              default_value=list())
+            message_list = message_pool.get_pool_info_with_id(
+                user_id, chat_id, default_value=[]
+            )
             llm_side_data = data_model.get_llm_side_data()
-            human_message_content = "[User uploaded a file {}]\n{}".format(filename,
-                                                                           llm_side_data)
+            human_message_content = f"[User uploaded a file {filename}]\n{llm_side_data}"
             human_message_id = message_id_register.add_variable(human_message_content)
             message_list.append(
                 {
@@ -210,8 +212,7 @@ def apply_to_conversation() -> Response:
                 "success": True,
                 "message_id": human_message_id,
                 "parent_message_id": parent_message_id,
-                "message": "Successfully apply {} to conversation {}".format(filename,
-                                                                             chat_id),
+                "message": f"Successfully apply {filename} to conversation {chat_id}",
                 "content": {
                     "intermediate_steps": [],
                     "final_answer": [
@@ -233,9 +234,12 @@ def apply_to_conversation() -> Response:
             logger.bind(user_id=user_id, chat_id=chat_id, api="/apply",
                         msg_head="Apply file failed").debug(file_path)
 
-            return jsonify({"success": False,
-                            "message": "You have already import {} to the conversation".format(
-                                filename)})
+            return jsonify(
+                {
+                    "success": False,
+                    "message": f"You have already import {filename} to the conversation",
+                }
+            )
     except Exception as e:
         logger.bind(user_id=user_id, chat_id=chat_id, api="/apply",
                     msg_head="Apply file failed").error(file_path)
@@ -336,7 +340,7 @@ def download_files() -> Response:
                         status=f"{INTERNAL} Download file failed: file not correctlt sent")
 
     except Exception as e:
-        print(str(e))
+        print(e)
         import traceback
         traceback.print_exc()
 
@@ -348,7 +352,7 @@ def download_files() -> Response:
 
 
 def _generate_directory_name(name: str, x:int=0) -> Any:
-    dir_name = (name + ("_" + str(x) if x != 0 else "")).strip()
+    dir_name = (name + (f"_{x}" if x != 0 else "")).strip()
     if not os.path.exists(dir_name):
         return dir_name
     else:
@@ -461,13 +465,12 @@ def set_default_examples() -> Response:
         root_path = create_personal_folder(user_id)
         example_dir = os.path.dirname(os.path.dirname(app.config["UPLOAD_FOLDER"]))
         example_path = os.path.join(example_dir, "data/examples/")
-        if os.path.exists(example_path):
-            shutil.copytree(example_path, root_path, dirs_exist_ok=True)
-            return jsonify(
-                {"success": True, "message": "Default examples are set successfully"})
-        else:
+        if not os.path.exists(example_path):
             return Response(response=None,
                             status=f"{UNFOUND} Directory not found at {example_dir}")
+        shutil.copytree(example_path, root_path, dirs_exist_ok=True)
+        return jsonify(
+            {"success": True, "message": "Default examples are set successfully"})
     except Exception as e:
         return Response(response=None,
                         status=f"{INTERNAL} Fail to Set Default Examples")

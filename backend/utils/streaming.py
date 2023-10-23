@@ -39,8 +39,7 @@ def check_url_exist(text: str) -> bool:
 # function to extract links from text
 def extract_links(text: str) -> list[Any]:
     url_regex = r"(http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\\(\\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+)"
-    links = re.findall(url_regex, text)
-    return links
+    return re.findall(url_regex, text)
 
 
 # function to extract image links from a webpage
@@ -84,10 +83,7 @@ def extract_card_info_from_text(message: str) -> list:
     rt = []
     for link in links:
         title, image_links = extract_title_and_image_links(link)
-        if len(image_links) > 0:
-            selected_image_link = image_links[0]
-        else:
-            selected_image_link = ""  # no image in this website
+        selected_image_link = image_links[0] if len(image_links) > 0 else ""
         rt.append({"title": title, "web_link": link, "image_link": selected_image_link})
     return rt
 
@@ -95,15 +91,11 @@ def extract_card_info_from_text(message: str) -> list:
 def extract_card_info_from_links(links: List[str]) -> list[dict[str, Any]]:
     rt = []
     for link in links:
-        if check_url_exist(link):
-            title, image_links = extract_title_and_image_links(link)
-            if len(image_links) > 0:
-                selected_image_link = image_links[0]
-            else:
-                selected_image_link = ""  # no image in this website
-            rt.append({"title": title, "web_link": link, "image_link": selected_image_link})
-        else:
+        if not check_url_exist(link):
             continue
+        title, image_links = extract_title_and_image_links(link)
+        selected_image_link = image_links[0] if len(image_links) > 0 else ""
+        rt.append({"title": title, "web_link": link, "image_link": selected_image_link})
     return rt
 
 
@@ -164,7 +156,7 @@ def _wrap_agent_caller(
     try:
         _ = interaction_executor(inputs, callbacks=callbacks)
         message_list_from_memory = MessageMemoryManager.save_agent_memory_to_list(interaction_executor.memory)
-        memory_pool.update({chat_id: message_list_from_memory})
+        memory_pool[chat_id] = message_list_from_memory
         del interaction_executor
     except Exception as e:
         import traceback
@@ -273,20 +265,17 @@ def single_round_chat_with_agent_streaming(
                     # first time display list is empty
                     if empty_s_time == -1:
                         empty_s_time = time.time()
-                    # already empty for some time
-                    else:
-                        if time.time() - empty_s_time > timeout and chat_thread.is_alive():
-                            threading_pool.timeout_thread(chat_id)
-                            break
+                    elif time.time() - empty_s_time > timeout and chat_thread.is_alive():
+                        threading_pool.timeout_thread(chat_id)
+                        break
 
                     if last_heartbeat_time == -1:
                         last_heartbeat_time = time.time()
-                    else:
-                        if time.time() - last_heartbeat_time > HEARTBEAT_INTERVAL and chat_thread.is_alive():
-                            last_heartbeat_time = -1
-                            yield _streaming_token(
-                                {"text": "🫀", "type": "heartbeat", "final": False}, False, user_id, chat_id, False
-                            )
+                    elif time.time() - last_heartbeat_time > HEARTBEAT_INTERVAL and chat_thread.is_alive():
+                        last_heartbeat_time = -1
+                        yield _streaming_token(
+                            {"text": "🫀", "type": "heartbeat", "final": False}, False, user_id, chat_id, False
+                        )
 
                 else:
                     empty_s_time = -1
@@ -408,7 +397,7 @@ def single_round_chat_with_agent_streaming(
     # Combine the streaming tokens/blocks
     intermediate_list_combined = _combine_streaming(intermediate_list)
     final_list_combined = _combine_streaming(final_list)
-    if len(converted_card_info_list) > 0:
+    if converted_card_info_list:
         final_list_combined.extend(converted_card_info_list)
     # Insert User Message, if regenerate there is no need to insert again
     db.message.insert_one(
@@ -449,7 +438,7 @@ def _wrap_executor_caller(
     try:
         results = executor.run(inputs, llm)
         message_list_from_memory = results
-        memory_pool.update({chat_id: message_list_from_memory})
+        memory_pool[chat_id] = message_list_from_memory
     except Exception as e:
         import traceback
 
@@ -516,11 +505,9 @@ def single_round_chat_with_executor(
             # first time display list is empty
             if empty_s_time == -1:
                 empty_s_time = time.time()
-            # already empty for some time
-            else:
-                if time.time() - empty_s_time > timeout and chat_thread.is_alive():
-                    threading_pool.timeout_thread(chat_id)
-                    break
+            elif time.time() - empty_s_time > timeout and chat_thread.is_alive():
+                threading_pool.timeout_thread(chat_id)
+                break
         else:
             empty_s_time = -1
 
@@ -534,10 +521,7 @@ def single_round_chat_with_executor(
                 is_block_first_ = False
             yield pack_json(
                 {
-                    "final_answer": {
-                        "type": "text",
-                        "text": text + " ",
-                    },
+                    "final_answer": {"type": "text", "text": f"{text} "},
                     "is_block_first": is_block_first_,
                     "streaming_method": "char",
                     "user_id": user_id,
@@ -558,7 +542,7 @@ def single_round_chat_with_executor(
         error_msg_to_render = error_rendering(error_msg)
         yield pack_json({"success": False, "error": "internal", "error_msg": error_msg_to_render})
         return
-    elif len(memory_pool[chat_id]) == 0 or len(final_answer) == 0:
+    elif len(memory_pool[chat_id]) == 0 or not final_answer:
         yield pack_json({"success": False, "error": "internal"})
         return
     # Response Success!!

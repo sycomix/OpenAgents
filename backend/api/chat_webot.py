@@ -47,11 +47,7 @@ def save_webot_to_redis(user_id: str, chat_id: str, webot: WebBrowsingExecutor, 
 
 def get_webot_status_from_redis(user_id: str, chat_id: str):
     webot_status_json = r.get(f'webot_status_{user_id}_{chat_id}')
-    if webot_status_json is not None:
-        webot_status = json.loads(webot_status_json)
-        return webot_status
-    else:
-        return {}
+    return json.loads(webot_status_json) if webot_status_json is not None else {}
 
 
 def save_webot_status_to_redis(user_id: str, chat_id: str, webot_status: Dict):
@@ -71,7 +67,7 @@ def reset_webot_status(user_id: str, chat_id: str):
 # this function has been deprecated
 def get_plan(instruction: str, start_url: str, chat_llm: ChatOpenAI):
     # fixme: Move this into a separate chain or executors to decompose the LLMs
-    system_message = f"""
+    system_message = """
 You are a planner to assist another browser automation assistant.
 
 Here is the instruction for the other assistant:
@@ -130,8 +126,7 @@ example plan:
 
     messages = [SystemMessage(content=system_message),
                 HumanMessage(content=human_message)]
-    response = chat_llm(messages).content
-    return response
+    return chat_llm(messages).content
 
 
 def create_webot_interaction_executor(
@@ -155,6 +150,8 @@ def create_webot_interaction_executor(
     # Initialize memory
     memory = ConversationReActBufferMemory(memory_key="chat_history",
                                            return_messages=True, max_token_limit=10000)
+
+
 
     class RunWebot:
         def __init__(self, webot: WebotExecutor, llm: BaseLanguageModel, user_id: str,
@@ -201,64 +198,77 @@ def create_webot_interaction_executor(
                     webot = get_webot_from_redis(user_id=user_id, chat_id=chat_id)
                     action_history = webot.action_history
                     last_page = webot.pages_viewed[-1]
-                    observation = JsonDataModel.from_raw_data(
+                    return JsonDataModel.from_raw_data(
                         {
                             "success": True,
-                            "result": json.dumps({"action_history": action_history,
-                                                  "last_page": last_page}, indent=4),
+                            "result": json.dumps(
+                                {
+                                    "action_history": action_history,
+                                    "last_page": last_page,
+                                },
+                                indent=4,
+                            ),
                             "intermediate_steps": json.dumps(
-                                {"instruction": instruction, "start_url": start_url},
-                                indent=4)
+                                {
+                                    "instruction": instruction,
+                                    "start_url": start_url,
+                                },
+                                indent=4,
+                            ),
                         }
                     )
-                    return observation
-
                 if webot.fail:
-                    observation = JsonDataModel.from_raw_data(
+                    return JsonDataModel.from_raw_data(
                         {
                             "success": True,
                             "result": "The webot failed to execute the instruction.",
                             "intermediate_steps": json.dumps(
-                                {"instruction": instruction, "start_url": start_url},
-                                indent=4)
+                                {
+                                    "instruction": instruction,
+                                    "start_url": start_url,
+                                },
+                                indent=4,
+                            ),
                         }
                     )
-                    return observation
-
                 if webot.interrupt:
-                    observation = JsonDataModel.from_raw_data(
+                    return JsonDataModel.from_raw_data(
                         {
                             "success": False,
                             "result": "The web browsing is interrupted by user.",
                             "intermediate_steps": json.dumps(
-                                {"instruction": instruction, "start_url": start_url},
-                                indent=4)
+                                {
+                                    "instruction": instruction,
+                                    "start_url": start_url,
+                                },
+                                indent=4,
+                            ),
                         }
                     )
-                    return observation
-
                 if webot.error:
-                    observation = JsonDataModel.from_raw_data(
+                    return JsonDataModel.from_raw_data(
                         {
                             "success": False,
                             "result": "Error occurs during web browsing.",
                             "intermediate_steps": json.dumps(
-                                {"instruction": instruction, "start_url": start_url},
-                                indent=4)
+                                {
+                                    "instruction": instruction,
+                                    "start_url": start_url,
+                                },
+                                indent=4,
+                            ),
                         }
                     )
-                    return observation
-
             except Exception as e:
                 print(traceback.format_exc())
-                observation = JsonDataModel.from_raw_data(
+                return JsonDataModel.from_raw_data(
                     {
                         "success": False,
                         "result": f"Failed in web browsing with the input: {term}, please try again later.",
-                        "intermediate_steps": json.dumps({"error": str(e)})
+                        "intermediate_steps": json.dumps({"error": str(e)}),
                     }
                 )
-                return observation
+
 
     webot = WebotExecutor.from_webot()
     llm = copy.deepcopy(llm)
@@ -266,10 +276,9 @@ def create_webot_interaction_executor(
     tools = [Tool(name=webot.name, func=run_webot.run, description=webot.description)]
 
     continue_model = llm_name if llm_name in NEED_CONTINUE_MODEL else None
-    interaction_executor = initialize_webot_agent(
+    return initialize_webot_agent(
         tools, llm, continue_model, memory=memory, verbose=True
     )
-    return interaction_executor
 
 
 @app.route("/api/chat_xlang_webot", methods=["POST"])
@@ -313,10 +322,9 @@ def chat_xlang_webot() -> Dict:
             user_id=user_id
         )
 
-        activated_message_list = message_pool.get_activated_message_list(user_id,
-                                                                         chat_id,
-                                                                         list(),
-                                                                         parent_message_id)
+        activated_message_list = message_pool.get_activated_message_list(
+            user_id, chat_id, [], parent_message_id
+        )
         message_pool.load_agent_memory_from_list(interaction_executor.memory,
                                                  activated_message_list)
         return stream_with_context(

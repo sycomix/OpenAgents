@@ -174,18 +174,12 @@ class BaseChatModel(BaseLanguageModel, ABC):
         return self.predict(message, stop=stop)
 
     def predict(self, text: str, *, stop: Optional[Sequence[str]] = None) -> str:
-        if stop is None:
-            _stop = None
-        else:
-            _stop = list(stop)
+        _stop = None if stop is None else list(stop)
         result = self([HumanMessage(content=text)], stop=_stop)
         return result.content
 
     def predict_messages(self, messages: List[BaseMessage], *, stop: Optional[Sequence[str]] = None) -> BaseMessage:
-        if stop is None:
-            _stop = None
-        else:
-            _stop = list(stop)
+        _stop = None if stop is None else list(stop)
         return self(messages, stop=_stop)
 
     @property

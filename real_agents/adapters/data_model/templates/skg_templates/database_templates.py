@@ -60,15 +60,14 @@ def serialize_db(
     max_tokens: int = 1000,
 ) -> str:
     """Convert database engine to a string representation."""
-    if serialize_method == "database":
-        # TODO: Now access the internal variable
-        setattr(db, "_sample_rows_in_table_info", num_visible_rows)
-        string = db.get_table_info()
-        # Truncate the string if it is too long
-        enc = tiktoken.get_encoding("cl100k_base")
-        enc_tokens = enc.encode(string)
-        if len(enc_tokens) > max_tokens:
-            string = enc.decode(enc_tokens[:max_tokens])
-    else:
+    if serialize_method != "database":
         raise ValueError("Unknown serialization method.")
+    # TODO: Now access the internal variable
+    setattr(db, "_sample_rows_in_table_info", num_visible_rows)
+    string = db.get_table_info()
+    # Truncate the string if it is too long
+    enc = tiktoken.get_encoding("cl100k_base")
+    enc_tokens = enc.encode(string)
+    if len(enc_tokens) > max_tokens:
+        string = enc.decode(enc_tokens[:max_tokens])
     return string

@@ -28,7 +28,9 @@ def _load_module(name: str, file_path: str) -> Any:
 
 def load_plugin_elements_by_name(plugin_name: str):
     # Check if the plugin name is valid
-    assert plugin_name in PluginName.__members__, "Unknown plugin name {}.".format(plugin_name)
+    assert (
+        plugin_name in PluginName.__members__
+    ), f"Unknown plugin name {plugin_name}."
     plugin_dir_name = PluginName[plugin_name].value
 
     # Load in the plugin meta info
@@ -42,7 +44,7 @@ def load_plugin_elements_by_name(plugin_name: str):
 
         # Load all supported endpoints
     tmp = _load_module(plugin_dir_name, os.path.join(plugin_file_path, "paths", "__init__.py"))
-    assert hasattr(tmp, "path_dict"), f"Missing variable path_dict in __init__.py"
+    assert hasattr(tmp, "path_dict"), "Missing variable path_dict in __init__.py"
 
     # Load in the plugin spec
     yaml_path = os.path.join(plugin_file_path, PLUGIN_SPEC_FILE)
@@ -73,12 +75,15 @@ def load_plugin_elements_by_name(plugin_name: str):
     endpoint2output_model = defaultdict(lambda x: x)
     for fn, ep in filename2endpoint.items():
         # load api callers for different endpoints
-        tmp = _load_module(f"{plugin_dir_name}:{fn}:caller", os.path.join(plugin_file_path, "paths", fn + ".py"))
+        tmp = _load_module(
+            f"{plugin_dir_name}:{fn}:caller",
+            os.path.join(plugin_file_path, "paths", f"{fn}.py"),
+        )
         assert hasattr(tmp, "call_api"), f"Missing function call_api in {fn}.py"
         endpoint2caller[ep] = tmp.call_api
 
         # load output data model for different endpoints
-        data_model_path = os.path.join(data_model_file_path, fn + ".py")
+        data_model_path = os.path.join(data_model_file_path, f"{fn}.py")
         if not os.path.exists(data_model_path):
             output_model = lambda x: x
         else:

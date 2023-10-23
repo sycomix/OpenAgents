@@ -20,12 +20,15 @@ def recommend() -> dict | Response:
 
         # Find the mainstat message list from leaf to root
         activated_message_list = message_pool.get_activated_message_list(
-            user_id, chat_id, default_value=list(), parent_message_id=parent_message_id
+            user_id,
+            chat_id,
+            default_value=[],
+            parent_message_id=parent_message_id,
         )
         chat_memory = ConversationReActBufferMemory(memory_key="chat_history", return_messages=True)
         message_pool.load_agent_memory_from_list(chat_memory, activated_message_list)
         question_suggestion_executor = QuestionSuggestionExecutor()
-        
+
         llm_name = request_json["llm_name"]
         temperature = request_json.get("temperature", 0.7)
         kwargs = {

@@ -23,14 +23,14 @@ def get_conversation_list() -> Response:
         # on the hashed API key.
         db = get_user_conversation_storage()
         conversation_list = db.conversation.find({"user_id": user_id})
-        for conversation in conversation_list:
-            conversations.append(
-                {
-                    "id": str(conversation["_id"]),
-                    "name": conversation["name"],
-                    "folderId": conversation["folder_id"],
-                }
-            )
+        conversations.extend(
+            {
+                "id": str(conversation["_id"]),
+                "name": conversation["name"],
+                "folderId": conversation["folder_id"],
+            }
+            for conversation in conversation_list
+        )
     except Exception as e:
         return Response(response=None,
                         status=f'{INTERNAL} error fetch conversation list')
@@ -45,14 +45,14 @@ def get_folder_list() -> Response:
     try:
         db = get_user_conversation_storage()
         folder_list = db.folder.find({"user_id": user_id})
-        for folder in folder_list:
-            folders.append(
-                {
-                    "id": str(folder["_id"]),
-                    "name": folder["name"],
-                    "type": "chat",
-                }
-            )
+        folders.extend(
+            {
+                "id": str(folder["_id"]),
+                "name": folder["name"],
+                "type": "chat",
+            }
+            for folder in folder_list
+        )
         return jsonify({"success": True, "data": folders})
     except Exception as e:
         return Response(response=None, status=f'{INTERNAL} error fetch folder list')
@@ -108,7 +108,7 @@ def get_conversation_content() -> Response:
                 # By default, the latest message is the end point, e.g., the current branch of messages.
                 activated_messages: list = []
                 end_point = messages[0]["id"]
-                while len(messages) > 0 and end_point != -1:
+                while messages and end_point != -1:
                     flag = False
                     for msg in messages:
                         if msg["id"] == end_point:
@@ -128,7 +128,7 @@ def get_conversation_content() -> Response:
             if messages:
                 messages = _get_activated_conversation_branch(messages)
 
-            logger.bind(msg_head=f"get_activated_message_list").debug(messages)
+            logger.bind(msg_head="get_activated_message_list").debug(messages)
 
             conversation = {
                 "id": conversation_id,
@@ -165,17 +165,18 @@ def update_conversation() -> Response:
         success = True
         update_key_dict = {"name": "name", "folder_id": "folderId"}
         for conversation_to_update in conversations:
+            updates = {
+                key: conversation_to_update[update_key_dict[key]]
+                for key, value in update_key_dict.items()
+                if value in conversation_to_update
+            }
             conversation_id = conversation_to_update["id"]
-            name = conversation_to_update["name"]
-            updates = {}
-            for key in update_key_dict.keys():
-                if update_key_dict[key] in conversation_to_update:
-                    updates[key] = conversation_to_update[update_key_dict[key]]
             if conversation_id is not None:
+                name = conversation_to_update["name"]
                 try:
                     db.conversation.update_one({"_id": ObjectId(conversation_id)},
                                                {"$set": updates})
-                    messages.append("Conversation name updated to {}.".format(name))
+                    messages.append(f"Conversation name updated to {name}.")
                 except Exception as e:
                     messages.append(str(e))
                     success = False
@@ -197,8 +198,12 @@ def update_folder() -> Response:
         db = get_user_conversation_storage()
         db.folder.update_one({"_id": ObjectId(folder_id)},
                              {"$set": {"name": folder_name}})
-        return jsonify({"success": True,
-                        "message": "Folder name updated to {}.".format(folder_name)})
+        return jsonify(
+            {
+                "success": True,
+                "message": f"Folder name updated to {folder_name}.",
+            }
+        )
     except Exception as e:
         return Response(response=None, status=f"{INTERNAL} error update folder")
 
@@ -208,8 +213,7 @@ def register_folder() -> Response:
     """Creates a new folder."""
     request_json = request.get_json()
     user_id = request_json.pop("user_id", DEFAULT_USER_ID)
-    folder = request_json.get("folder", None)
-    if folder:
+    if folder := request_json.get("folder", None):
         try:
             db = get_user_conversation_storage()
             folder = db.folder.insert_one({"name": folder["name"], "user_id": user_id})
@@ -226,103 +230,95 @@ def register_conversation() -> Response:
     """Creates a new conversation."""
     request_json = request.get_json()
     user_id = request_json.pop("user_id", DEFAULT_USER_ID)
-    conversation = request_json.get("conversation", None)
-    if conversation:
-        try:
-            db = get_user_conversation_storage()
-            conversation_id = conversation["id"]
-            if conversation_id is not None and db.conversation.find_one(
-                    {"_id": ObjectId(conversation_id)}):
-                updates = {
+    if not (conversation := request_json.get("conversation", None)):
+        return Response(response=None, status=f"{UNFOUND} missing conversation")
+    try:
+        db = get_user_conversation_storage()
+        conversation_id = conversation["id"]
+        if conversation_id is not None and db.conversation.find_one(
+                {"_id": ObjectId(conversation_id)}):
+            updates = {
+                "name": conversation["name"],
+                "model": conversation["model"],
+                "prompt": conversation["prompt"],
+                "temperature": conversation["temperature"],
+                "folder_id": conversation["folderId"],
+                "bookmarked_message_ids": conversation.get("bookmarkedMessagesIds",
+                                                           None),
+                "selected_code_interpreter_plugins": conversation[
+                    "selectedCodeInterpreterPlugins"],
+                "selected_plugins": conversation["selectedPlugins"],
+            }
+            db.conversation.update_one({"_id": ObjectId(conversation_id)},
+                                       {"$set": updates})
+        else:
+            conversation = db.conversation.insert_one(
+                {
                     "name": conversation["name"],
                     "model": conversation["model"],
                     "prompt": conversation["prompt"],
                     "temperature": conversation["temperature"],
                     "folder_id": conversation["folderId"],
-                    "bookmarked_message_ids": conversation.get("bookmarkedMessagesIds",
-                                                               None),
+                    "bookmarked_message_ids": conversation.get(
+                        "bookmarkedMessagesIds", None),
+                    "hashed_api_key": "",
+                    "user_id": user_id,
                     "selected_code_interpreter_plugins": conversation[
                         "selectedCodeInterpreterPlugins"],
                     "selected_plugins": conversation["selectedPlugins"],
+                    "timestamp": datetime.datetime.utcnow(),
                 }
-                db.conversation.update_one({"_id": ObjectId(conversation_id)},
-                                           {"$set": updates})
-            else:
-                conversation = db.conversation.insert_one(
-                    {
-                        "name": conversation["name"],
-                        "model": conversation["model"],
-                        "prompt": conversation["prompt"],
-                        "temperature": conversation["temperature"],
-                        "folder_id": conversation["folderId"],
-                        "bookmarked_message_ids": conversation.get(
-                            "bookmarkedMessagesIds", None),
-                        "hashed_api_key": "",
-                        "user_id": user_id,
-                        "selected_code_interpreter_plugins": conversation[
-                            "selectedCodeInterpreterPlugins"],
-                        "selected_plugins": conversation["selectedPlugins"],
-                        "timestamp": datetime.datetime.utcnow(),
-                    }
-                )
-                conversation_id = str(conversation.inserted_id)
-            return jsonify({"id": conversation_id})
-        except Exception as e:
-            return Response(response=None,
-                            status=f"{INTERNAL} error register conversation")
-    else:
-        return Response(response=None, status=f"{UNFOUND} missing conversation")
+            )
+            conversation_id = str(conversation.inserted_id)
+        return jsonify({"id": conversation_id})
+    except Exception as e:
+        return Response(response=None,
+                        status=f"{INTERNAL} error register conversation")
 
 
 @app.route("/api/conversations/delete_conversation", methods=["POST"])
 def delete_conversation() -> Response:
     """Deletes a conversation."""
     request_json = request.get_json()
-    chat_id = request_json.get("chat_id", None)
-    if chat_id:
-        try:
-            db = get_user_conversation_storage()
-            db.conversation.delete_one({"_id": ObjectId(chat_id)})
-            db.message.delete_many({"conversation_id": chat_id})
-            return jsonify({"success": True, "message": "Conversation is deleted."})
-        except Exception as e:
-            return jsonify({"success": False, "message": str(e)})
-    else:
+    if not (chat_id := request_json.get("chat_id", None)):
         return jsonify({"success": False, "message": "chat_id is missing"})
+    try:
+        db = get_user_conversation_storage()
+        db.conversation.delete_one({"_id": ObjectId(chat_id)})
+        db.message.delete_many({"conversation_id": chat_id})
+        return jsonify({"success": True, "message": "Conversation is deleted."})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
 
 
 @app.route("/api/conversations/delete_folder", methods=["POST"])
 def delete_folder() -> Response:
     """Deletes a folder."""
     request_json = request.get_json()
-    folder_id = request_json.get("folder_id", None)
-    if folder_id:
-        try:
-            db = get_user_conversation_storage()
-            db.folder.delete_one({"_id": ObjectId(folder_id)})
-            return jsonify({"success": True, "message": "Folder is deleted."})
-        except Exception as e:
-            return jsonify({"success": False, "message": str(e)})
-    else:
+    if not (folder_id := request_json.get("folder_id", None)):
         return jsonify({"success": False, "message": "folder_id is missing"})
+    try:
+        db = get_user_conversation_storage()
+        db.folder.delete_one({"_id": ObjectId(folder_id)})
+        return jsonify({"success": True, "message": "Folder is deleted."})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
 
 
 @app.route("/api/conversations/clear", methods=["POST"])
 def clear_all_conversation() -> Response:
     """Clears all previous conversations."""
     request_json = request.get_json()
-    user_id = request_json.pop("user_id", DEFAULT_USER_ID)
-    if user_id:
-        try:
-            db = get_user_conversation_storage()
-            db.conversation.delete_many({"user_id": user_id})
-            db.folder.delete_many({"user_id": user_id})
-            db.message.delete_many({"user_id": user_id})
-            return jsonify({"success": True, "message": "Clear All Conversations."})
-        except Exception as e:
-            return jsonify({"success": False, "message": str(e)})
-    else:
+    if not (user_id := request_json.pop("user_id", DEFAULT_USER_ID)):
         return jsonify({"success": False, "message": "user_id is missing"})
+    try:
+        db = get_user_conversation_storage()
+        db.conversation.delete_many({"user_id": user_id})
+        db.folder.delete_many({"user_id": user_id})
+        db.message.delete_many({"user_id": user_id})
+        return jsonify({"success": True, "message": "Clear All Conversations."})
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)})
 
 
 @app.route("/api/conversations/stop_conversation", methods=["POST"])

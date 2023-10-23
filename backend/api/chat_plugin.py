@@ -130,6 +130,8 @@ def create_plugins_interaction_executor(
                                            return_messages=True, style="plugin",
                                            max_token_limit=10000)
 
+
+
     class RunPlugin:
         def __init__(self, plugin: PluginExecutor, llm: BaseLanguageModel):
             self.plugin = plugin
@@ -140,16 +142,15 @@ def create_plugins_interaction_executor(
                 raw_observation = self.plugin.run(user_intent=term, llm=self.llm)
                 input_json, output = raw_observation["input_json"], raw_observation[
                     "api_output"]
-                observation = JsonDataModel.from_raw_data(
+                return JsonDataModel.from_raw_data(
                     {
                         "success": True,
-                        "result": json.dumps(output, indent=4) if isinstance(output,
-                                                                             dict) else output,
+                        "result": json.dumps(output, indent=4)
+                        if isinstance(output, dict)
+                        else output,
                         "intermediate_steps": json.dumps(input_json, indent=4),
                     }
                 )
-                return observation
-
             except Exception as e:
                 observation = JsonDataModel.from_raw_data(
                     {
@@ -160,13 +161,14 @@ def create_plugins_interaction_executor(
                 print(traceback.format_exc())
                 return observation
 
+
     # Load plugins from selected names
     _plugins = []
     for selected_plugin in selected_plugins:
         plugin = PluginExecutor.from_plugin_name(selected_plugin)
         llm = copy.deepcopy(llm)
 
-        if len([i for i in api_key_info if i["tool_name"] == plugin.name]) != 0:
+        if [i for i in api_key_info if i["tool_name"] == plugin.name]:
             plugin.api_key = \
             [i for i in api_key_info if i["tool_name"] == plugin.name][0]["api_key"]
             # For some plugins, we need to reload the plugin to update personal data
@@ -178,11 +180,9 @@ def create_plugins_interaction_executor(
                              description=plugin.full_description))
 
     continue_model = llm_name if llm_name in NEED_CONTINUE_MODEL else None
-    interaction_executor = initialize_plugin_agent(
+    return initialize_plugin_agent(
         _plugins, llm, continue_model, memory=memory, verbose=True
     )
-
-    return interaction_executor
 
 
 @app.route("/api/chat_xlang_plugin", methods=["POST"])
@@ -219,10 +219,9 @@ def chat_xlang_plugin() -> Dict:
         api_key_info = api_key_pool.get_pool_info_with_id(user_id,
                                                           default_value=[])  # fixme: mock user_id: 1
 
-        activated_message_list = message_pool.get_activated_message_list(user_id,
-                                                                         chat_id,
-                                                                         list(),
-                                                                         parent_message_id)
+        activated_message_list = message_pool.get_activated_message_list(
+            user_id, chat_id, [], parent_message_id
+        )
 
         # Flag for auto retrieving plugins
         if len(selected_plugins) == 1 and selected_plugins[0].lower() == "auto":

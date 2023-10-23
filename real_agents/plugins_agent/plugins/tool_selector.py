@@ -107,11 +107,11 @@ class ToolSelector:
         """
         user_id = self.user_id
         api_key_info = self.api_key_pool.get_pool_info_with_id(user_id, default_value=[])
-        if len([i for i in api_key_info if i["tool_name"] == tool_name]) != 0:
-            api_key = [i for i in api_key_info if i["tool_name"] == tool_name][0]["api_key"]
-        else:
-            api_key = None
-        return api_key
+        return (
+            [i for i in api_key_info if i["tool_name"] == tool_name][0]["api_key"]
+            if [i for i in api_key_info if i["tool_name"] == tool_name]
+            else None
+        )
 
     def check_plugin_valid(self, tool_path: str) -> bool:
         """
@@ -119,7 +119,7 @@ class ToolSelector:
         """
         plugins = self.tool_list
         # check if plugin exists and get the plugin if it exists
-        if len([i for i in plugins if i["name"].lower() == tool_path.lower()]) != 0:
+        if [i for i in plugins if i["name"].lower() == tool_path.lower()]:
             plugin = [i for i in plugins if i["name"].lower() == tool_path.lower()][0]
         else:
             plugin = None
@@ -127,10 +127,10 @@ class ToolSelector:
 
         # check if plugin requires an API key and if the user has provided one
         if plugin is not None:
-            if plugin["require_api_key"] and self.get_api_key_from_tool_name(tool_path) == None:
-                return False
-            else:
-                return True
+            return (
+                not plugin["require_api_key"]
+                or self.get_api_key_from_tool_name(tool_path) is not None
+            )
         else:
             return False
 
@@ -143,24 +143,22 @@ class ToolSelector:
         Example:
         message_list = [{'message_type': 'human_message', 'message_content': 'buy nike shoes', 'message_id': 362, 'parent_message_id': -1}, {'message_type': 'ai_message', 'message_content': '', 'message_id': 363, 'parent_message_id': 362}]
         """
-        # concatenate all history messages into one single query
-        # The message_list is the history message list so we need to concatenate user intent(current message) to the end of the message list
-        query = ""
-        for message in message_list:
-            # only concatenate human messages since we only need to retrieve tools based on user intent and the ai_message can be long sometimes which will influence the embedding
-            if "message_content" in message.keys() and "message_type" in message.keys() and message[
-                "message_type"] == 'human_message':
-                query += (message["message_content"] + " ")
-            else:
-                continue
-        query += user_intent
-        return query
+        return (
+            "".join(
+                (message["message_content"] + " ")
+                for message in message_list
+                if "message_content" in message.keys()
+                and "message_type" in message.keys()
+                and message["message_type"] == 'human_message'
+            )
+            + user_intent
+        )
 
     def select_tools(self, query: str = "", top_k: int = 8):
         """
         Select the top k tools based on the similarity between the query and the tool description.
         """
-        if query == "":
+        if not query:
             raise ValueError("Query cannot be empty.")
         if self.mode not in self.valid_modes:
             raise ValueError(f"Invalid mode '{self.mode}'. Valid modes are {self.valid_modes}")
@@ -177,7 +175,7 @@ class ToolSelector:
             tool_embeddings = []
             for name, description in zip(self.tool_paths, self.get_tool_descriptions()):
                 # Define file path for the cached embedding
-                tool_embedding_file = EMBEDDING_CACHE_PATH + "/" + name + ".pkl"
+                tool_embedding_file = f"{EMBEDDING_CACHE_PATH}/{name}.pkl"
                 # Check if tool embedding is already cached
                 if os.path.isfile(tool_embedding_file):
                     with open(tool_embedding_file, "rb") as f:

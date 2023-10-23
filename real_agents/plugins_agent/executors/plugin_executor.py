@@ -67,8 +67,7 @@ class PluginExecutor(BaseModel):
             self.api_key,
         )
 
-        output = method(inputs)
-        return output
+        return method(inputs)
 
     def load_personnel_info(self):
         new_endpoint2caller, new_endpoints2output_model = self.spec_model.load_personnel_info(

@@ -81,7 +81,7 @@ def create_interaction_executor(
             # Only TableDataModel are allowed as input to python
             # input_grounding_source = [gs for _, gs in grounding_source_dict.items()
             # if isinstance(gs, TableDataModel)]
-            input_grounding_source = [gs for gs in grounding_source_dict.values()]
+            input_grounding_source = list(grounding_source_dict.values())
             # Get the result
             results = python_code_generation_executor.run(
                 user_intent=term,
@@ -132,8 +132,8 @@ def create_interaction_executor(
         try:
 
             def convert_grounding_source_as_db(
-                    grounding_source_dict: Dict[str, DataModel]
-            ) -> Union[List[TableDataModel], DatabaseDataModel]:
+                                grounding_source_dict: Dict[str, DataModel]
+                        ) -> Union[List[TableDataModel], DatabaseDataModel]:
                 db_grounding_source = [
                     gs for _, gs in grounding_source_dict.items() if
                     isinstance(gs, DatabaseDataModel)
@@ -143,25 +143,24 @@ def create_interaction_executor(
                     isinstance(gs, TableDataModel)
                 ]
                 assert len(db_grounding_source) <= 1
-                if len(table_grounding_source) == 0:
+                if not table_grounding_source:
                     # Only DatabaseDataModel. Assume there is at least one grounding
                     # source
                     return db_grounding_source[0]
-                else:
-                    for t_gs in table_grounding_source:
-                        if len(db_grounding_source) == 0:
-                            # No DatabaseDataModel, then convert the first TableModel
-                            # into DatabaseDataModel.
-                            if t_gs.db_view is None:
-                                t_gs.set_db_view(
-                                    DatabaseDataModel.from_table_data_model(t_gs))
-                            db_gs = t_gs.db_view
-                            db_grounding_source.append(db_gs)
-                        else:
-                            # Insert TableDataModel into the existing DatabaseDataModel
-                            db_gs = db_grounding_source[0]
-                            db_gs.insert_table_data_model(t_gs)
-                    return db_gs
+                for t_gs in table_grounding_source:
+                    if not db_grounding_source:
+                        # No DatabaseDataModel, then convert the first TableModel
+                        # into DatabaseDataModel.
+                        if t_gs.db_view is None:
+                            t_gs.set_db_view(
+                                DatabaseDataModel.from_table_data_model(t_gs))
+                        db_gs = t_gs.db_view
+                        db_grounding_source.append(db_gs)
+                    else:
+                        # Insert TableDataModel into the existing DatabaseDataModel
+                        db_gs = db_grounding_source[0]
+                        db_gs.insert_table_data_model(t_gs)
+                return db_gs
 
             input_grounding_source = convert_grounding_source_as_db(
                 grounding_source_dict)
@@ -349,8 +348,10 @@ def chat() -> Response | Dict:
 
             # Find the mainstay message list from leaf to root
             activated_message_list = message_pool.get_activated_message_list(
-                user_id, chat_id, default_value=list(),
-                parent_message_id=parent_message_id
+                user_id,
+                chat_id,
+                default_value=[],
+                parent_message_id=parent_message_id,
             )
             assert api_call["api_name"] == "DataProfiling"
             ai_message_id = message_id_register.add_variable("")
@@ -395,8 +396,10 @@ def chat() -> Response | Dict:
             )
             # Find the mainstay message list from leaf to root
             activated_message_list = message_pool.get_activated_message_list(
-                user_id, chat_id, default_value=list(),
-                parent_message_id=parent_message_id
+                user_id,
+                chat_id,
+                default_value=[],
+                parent_message_id=parent_message_id,
             )
             message_pool.load_agent_memory_from_list(interaction_executor.memory,
                                                      activated_message_list)

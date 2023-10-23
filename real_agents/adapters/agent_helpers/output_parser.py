@@ -37,10 +37,7 @@ class ConversationOutputParser(AgentOutputParser):
         import re
 
         def _extract_explanation(json_string: str) -> Optional[str]:
-            if "```" in json_string:
-                return json_string.split("```")[0]
-            else:
-                return None
+            return json_string.split("```")[0] if "```" in json_string else None
 
         def _extract_value(json_string: str, key: str) -> str:
             pattern = re.compile(rf'"?{key}"?\s*:\s*("((?:[^"\\]|\\.)*)"|(\b[^,\s]*\b))', re.MULTILINE)

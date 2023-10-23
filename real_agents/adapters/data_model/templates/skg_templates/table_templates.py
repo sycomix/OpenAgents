@@ -152,10 +152,7 @@ def serialize_df(
     if serialize_method == "tsv":
         # Here it means ignore the "path/to/the/data/<user_id/" part of the path
         pretty_path = "/".join(table_path.split(data_dir_splitter)[-1].strip("/").split("/")[1:])
-        string = (
-            "Here are table columns and the first {} rows of the table from the path {}"
-            '(only a small part of the whole table) called "{}":\n'.format(num_visible_rows, pretty_path, table_name)
-        )
+        string = f'Here are table columns and the first {num_visible_rows} rows of the table from the path {pretty_path}(only a small part of the whole table) called "{table_name}":\n'
         string += table_data.head(num_visible_rows).to_csv(sep="\t", index=False)
         # Truncate the string if it is too long
         enc = tiktoken.get_encoding("cl100k_base")

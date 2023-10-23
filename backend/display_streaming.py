@@ -20,9 +20,7 @@ def is_json(text: str) -> bool:
 
 def split_text_and_code(text: str) -> List:
     pattern = r"(```[\s\S]+?```)"
-    result = [x for x in re.split(pattern, text) if x.strip()]
-
-    return result
+    return [x for x in re.split(pattern, text) if x.strip()]
 
 
 def detect_code_type(code) -> str:
@@ -105,12 +103,10 @@ class DisplayStream(BaseModel):
                 self.action = ""
                 return [{"text": _pretty_name, "type": "tool", "final": False}]
         if token["type"] == "plain":
-            # Display plain text
             if self.streaming_mode == "identifier":
                 return None
-            else:
-                self.streaming_mode = "plain"
-                return [{"text": token["text"], "type": "transition", "final": False}]
+            self.streaming_mode = "plain"
+            return [{"text": token["text"], "type": "transition", "final": False}]
         elif token["type"] == "identifier":
             self.streaming_mode = "identifier"
             return None
@@ -127,10 +123,9 @@ class DisplayStream(BaseModel):
                 return [{"text": token["text"], "type": "plain", "final": True}]
         elif token["type"] == "block":
             observation = token["text"]
-            result = self._display_observation(observation=observation)
-            return result
+            return self._display_observation(observation=observation)
         else:
-            raise ValueError("Unknown token type: {}".format(token["type"]))
+            raise ValueError(f'Unknown token type: {token["type"]}')
 
     def _display_observation(self, observation: Dict) -> Optional[List]:
         """Display the observation, i.e., the response from the tool

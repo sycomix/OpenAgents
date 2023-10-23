@@ -86,8 +86,7 @@ Begin."
             # No datasets found
             datasets = api.dataset_list(max_size=20000, page=1, file_type="csv")[:search_top_k]
 
-        output_info = self._get_dataset_meta_info(api, datasets)
-        return output_info
+        return self._get_dataset_meta_info(api, datasets)
 
     def _get_dataset_meta_info(self, api: KaggleApi, datasets: List) -> List[Dict]:
         """Get dataset key meta-data to be shown to the user."""
@@ -100,7 +99,7 @@ Begin."
             with open(os.path.join(dataset_tmp_dir, "dataset-metadata.json")) as f:
                 dataset_metadata = json.load(f)
             shutil.rmtree(os.path.join(".kaggle_meta/", dataset_hash_id))
-            dataset_url = "https://www.kaggle.com/datasets/" + dataset.ref
+            dataset_url = f"https://www.kaggle.com/datasets/{dataset.ref}"
             # Crawling the dataset page to get the dataset image
             dataset_cover_image_url = self._crawl_dataset_cover_image(dataset_url)
 

@@ -32,8 +32,7 @@ class DatabaseDataModel(DataModel):
 
     def get_llm_side_data(self, serialize_method: str = "database", num_visible_rows: int = 3) -> Any:
         db = self.raw_data
-        formatted_db = serialize_db(db, serialize_method, num_visible_rows)
-        return formatted_db
+        return serialize_db(db, serialize_method, num_visible_rows)
 
     def get_human_side_data(self) -> Any:
         # In the frontend, we show the first few rows of each table

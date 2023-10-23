@@ -6,12 +6,10 @@ def polish_echarts(echarts_str):
     try:
         option = json.loads(echarts_str)
 
-        # turn numeric axis into str
-        category_flag = False
-        for idx, series_data in enumerate(option["series"]):
-            if series_data["type"] in ["bar", "line"]:
-                category_flag = True
-                break
+        category_flag = any(
+            series_data["type"] in ["bar", "line"]
+            for series_data in option["series"]
+        )
         if category_flag:
             option["xAxis"][0]["data"] = [str(_) for _ in option["xAxis"][0]["data"]]
             for idx, series_data in enumerate(option["series"]):

@@ -12,9 +12,7 @@ def import_function_from_file(filepath, function_name):
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
 
-    function = getattr(module, function_name)
-
-    return function
+    return getattr(module, function_name)
 
 
 def process_one_param(param_dict: Dict[str, Any]) -> str:
@@ -26,11 +24,7 @@ def process_one_param(param_dict: Dict[str, Any]) -> str:
     type = schema.get("type", "UnknownType")
     value_choices = schema.get("enum", [])
 
-    ret = (
-        f"`{name}` ({type}, {'required' if required else 'optional'}): {description}."
-        f"{'Examples:' + ','.join([str(_) for _ in value_choices]) if len(value_choices) > 0 else ''}"
-    )
-    return ret
+    return f"`{name}` ({type}, {'required' if required else 'optional'}): {description}.{'Examples:' + ','.join([str(_) for _ in value_choices]) if len(value_choices) > 0 else ''}"
 
 
 def process_one_property(name: str, value_dict: Dict[str, Any]) -> str:
@@ -40,11 +34,7 @@ def process_one_property(name: str, value_dict: Dict[str, Any]) -> str:
     type = value_dict.get("type", "UnknownType")
     value_choices = value_dict.get("enum", [])
 
-    ret = (
-        f"`{name}` ({type}, {'required' if required else 'optional'}): {description}."
-        f"{'Examples:' + ','.join(value_choices) if len(value_choices) > 0 else ''}"
-    )
-    return ret
+    return f"`{name}` ({type}, {'required' if required else 'optional'}): {description}.{'Examples:' + ','.join(value_choices) if len(value_choices) > 0 else ''}"
 
 
 class SpecModel:

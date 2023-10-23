@@ -157,8 +157,9 @@ class ChatOpenAI(BaseChatModel):
                 extra[field_name] = values.pop(field_name)
 
         disallowed_model_kwargs = all_required_field_names | {"model"}
-        invalid_model_kwargs = disallowed_model_kwargs.intersection(extra.keys())
-        if invalid_model_kwargs:
+        if invalid_model_kwargs := disallowed_model_kwargs.intersection(
+            extra.keys()
+        ):
             raise ValueError(
                 f"Parameters {invalid_model_kwargs} should be specified explicitly. "
                 f"Instead they were passed in as part of `model_kwargs` parameter."
@@ -275,15 +276,12 @@ class ChatOpenAI(BaseChatModel):
     ) -> ChatResult:
         import openai
 
-        if self.openai_api_key:
-            import os
+        import os
 
+        if self.openai_api_key:
             # Use the pass-in key, if the user provides
             openai.api_key = self.openai_api_key
         else:
-            # Use the environment variable if neither is provided
-            import os
-
             openai_api_key = os.environ.get("OPENAI_API_KEY", None)
             openai.api_key = openai_api_key
 

@@ -43,5 +43,4 @@ class WebotExecutor(BaseModel):
         method = WebotCallingChain.from_llm(
             llm,
         )
-        output = method(inputs)
-        return output
+        return method(inputs)

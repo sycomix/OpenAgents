@@ -46,12 +46,11 @@ class MessageDataModel:
     def _count_tokens(test_string: str) -> int:
         """copy of langchain _get_num_token_default_method"""
         enc = tiktoken.get_encoding("cl100k_base")
-        tokens = len(enc.encode(test_string))
-        return tokens
+        return len(enc.encode(test_string))
 
     @classmethod
     def _get_num_tokens_from_messages(cls, buffer: List[BaseMessage]) -> int:
-        return sum([cls._count_tokens(m.content) for m in buffer])
+        return sum(cls._count_tokens(m.content) for m in buffer)
 
     @classmethod
     def truncate_text(cls, raw_text: str, max_token: Optional[int] = 250, trunc_ratio: int = 0.5) -> str:
@@ -71,13 +70,13 @@ class MessageDataModel:
         right = total_lines // 2
         while left < right:
             mid = (left + right) >> 1
-            text = "\n".join(lines[0:mid])
+            text = "\n".join(lines[:mid])
             token = cls._count_tokens(text)
             if token > half_tokens:
                 right = mid
             else:
                 left = mid + 1
-        first_half = "\n".join(lines[0:right])
+        first_half = "\n".join(lines[:right])
 
         # last half
         left = total_lines // 2 + 1
@@ -92,7 +91,7 @@ class MessageDataModel:
                 left = mid + 1
         second_half = "\n".join(lines[left:])
 
-        if first_half != "" or second_half != "":
+        if first_half or second_half:
             return f"{first_half}\n...\n[too long to show]\n...\n{second_half}"
         else:
             # if len(first_half_list) == 0 and len(last_half_list) == 0:
@@ -120,11 +119,15 @@ class MessageDataModel:
     @staticmethod
     def _extract_value(json_string: str, key: str) -> str:
         pattern = re.compile(rf'"?{key}"?\s*:\s*("((?:[^"\\]|\\.)*)"|(\b[^,\s]*\b))', re.MULTILINE)
-        match = pattern.search(json_string)
-        if match:
-            result = match.group(1).replace('\\"', '"').replace("\\\\", "\\").strip('"').strip("'").strip()
-            # result = f"\"{result}\""
-            return result
+        if match := pattern.search(json_string):
+            return (
+                match.group(1)
+                .replace('\\"', '"')
+                .replace("\\\\", "\\")
+                .strip('"')
+                .strip("'")
+                .strip()
+            )
         raise ValueError(f"Could not find {key} in {json_string}")
 
     @staticmethod
@@ -139,8 +142,7 @@ class MessageDataModel:
 
         cleaned_output = []
         for code_block in code_blocks:
-            matches = re.findall(pattern, code_block, re.DOTALL)
-            if matches:
+            if matches := re.findall(pattern, code_block, re.DOTALL):
                 cleaned_output.append(matches[0].strip())
         return "\n".join(cleaned_output)
 
@@ -195,11 +197,13 @@ class MessageDataModel:
     @classmethod
     def extract_code_for_python_tool(cls, text: str, max_token: int = 2500, trunc_ratio: float = 0.2) -> str:
         whole_code = MessageDataModel._extract_response(text)
-        trunc_code = cls.truncate_text(whole_code, max_token=max_token, trunc_ratio=trunc_ratio)
-        return trunc_code
+        return cls.truncate_text(
+            whole_code, max_token=max_token, trunc_ratio=trunc_ratio
+        )
 
     @classmethod
     def extract_code_for_sql_tool(cls, text: str, max_token: int = 2500, trunc_ratio: float = 0.2) -> str:
         whole_code = MessageDataModel._extract_response(text)
-        trunc_code = cls.truncate_text(whole_code, max_token=max_token, trunc_ratio=trunc_ratio)
-        return trunc_code
+        return cls.truncate_text(
+            whole_code, max_token=max_token, trunc_ratio=trunc_ratio
+        )

@@ -33,25 +33,30 @@ def reload_openapi(api_key, openapi_json):
         print(e)
         return openapi_json, {}
 
-    new_paths = {}
-    for item in data:
-        new_paths['/api/v1/exposed/{}/execute/'.format(item["id"])] = {
+    new_paths = {
+        f'/api/v1/exposed/{item["id"]}/execute/': {
             'post': {  # assuming POST method for all operations
                 'operationId': item['operation_id'],
                 'description': item['description'],
                 'parameters': [
-                    {'name': k, 'in': 'query', 'required': True, 'schema': {'type': v}}
+                    {
+                        'name': k,
+                        'in': 'query',
+                        'required': True,
+                        'schema': {'type': v},
+                    }
                     for k, v in item['params'].items()
                 ],
                 "security": {
                     "SessionAuth": [],
                     "AccessPointApiKeyHeader": [],
                     "AccessPointApiKeyQuery": [],
-                    "AccessPointOAuth": []
-                }
+                    "AccessPointOAuth": [],
+                },
             }
         }
-
+        for item in data
+    }
     openapi_json['paths'] = openapi_json['paths'] | new_paths
 
     return openapi_json, new_paths
@@ -65,13 +70,10 @@ def reload_endpoints(new_paths):
         def call_api(input_json, api_key):
             import requests
             headers = {"X-API-Key": api_key}
-            url = "https://nla.zapier.com" + new_path
+            url = f"https://nla.zapier.com{new_path}"
             response = requests.post(url, headers=headers, json=input_json)
 
-            if response.status_code == 200:
-                return response.json()
-            else:
-                return response.text
+            return response.json() if response.status_code == 200 else response.text
 
         new_endpoint2caller[new_path] = call_api
 

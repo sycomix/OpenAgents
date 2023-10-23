@@ -76,8 +76,7 @@ class PythonEvaluator:
     @staticmethod
     def parse_command(program: str) -> List[str]:
         """patchify the code"""
-        program_lines = program.strip().split("\n")
-        return program_lines
+        return program.strip().split("\n")
 
     def run_program_local(self, program: str, user_id: Optional[str] = "u" * 24):
         """Run python program on the local machine using Ipython shell."""
@@ -227,49 +226,48 @@ class PythonEvaluator:
 
             # Parse jupyter kernel output
             result, stdout, stderr, outputs, displays, error_message = None, "", "", None, [], None
-            if response["status"] == "ok":
-                output = response.get("output", None)
-                if output is not None:
-                    for output_dict in output:
-                        if output_dict["type"] == "stream":
-                            content = output_dict.get("content", None)
-                            if content is not None:
-                                if content["name"] == "stdout":
-                                    stdout = content["text"]
-                                if content["name"] == "stderr":
-                                    stderr = content["text"]
-                        elif output_dict["type"] == "execute_result":
-                            content = output_dict.get("content", None)
-                            if content is not None:
-                                data = content.get("data", None)
-                                if data is not None:
-                                    if "text/plain" in data and "text/html" in data:
-                                        try:
-                                            # Try to recover a dataframe
-                                            df = pd.read_csv(StringIO(data["text/plain"]))
-                                            result = df
-                                        except Exception as e:
-                                            pass
-                                    elif "text/plain" in data:
-                                        result = data["text/plain"]
-                                    else:
-                                        # TODO: If not match any of the above, return the first value
-                                        result = list(data.values())[0]
-                        elif output_dict["type"] == "display_data":
-                            content = output_dict.get("content", None)
-                            if content is not None:
-                                data = content.get("data", None)
-                                metadata = content.get("metadata", None)
-                                if data is not None and metadata is not None:
-                                    if "image/png" in data:
-                                        displays.append(DisplayData.from_tuple((data, metadata)))
-                            if displays:
-                                outputs = displays
-            else:
+            if response["status"] != "ok":
                 return {
                     "success": False,
                     "error_message": f"{ERROR_PREFIX}Error status returned by kernel",
                 }
+            output = response.get("output", None)
+            if output is not None:
+                for output_dict in output:
+                    if output_dict["type"] == "stream":
+                        content = output_dict.get("content", None)
+                        if content is not None:
+                            if content["name"] == "stdout":
+                                stdout = content["text"]
+                            if content["name"] == "stderr":
+                                stderr = content["text"]
+                    elif output_dict["type"] == "execute_result":
+                        content = output_dict.get("content", None)
+                        if content is not None:
+                            data = content.get("data", None)
+                            if data is not None:
+                                if "text/plain" in data and "text/html" in data:
+                                    try:
+                                        # Try to recover a dataframe
+                                        df = pd.read_csv(StringIO(data["text/plain"]))
+                                        result = df
+                                    except Exception as e:
+                                        pass
+                                elif "text/plain" in data:
+                                    result = data["text/plain"]
+                                else:
+                                    # TODO: If not match any of the above, return the first value
+                                    result = list(data.values())[0]
+                    elif output_dict["type"] == "display_data":
+                        content = output_dict.get("content", None)
+                        if content is not None:
+                            data = content.get("data", None)
+                            metadata = content.get("metadata", None)
+                            if data is not None and metadata is not None:
+                                if "image/png" in data:
+                                    displays.append(DisplayData.from_tuple((data, metadata)))
+                        if displays:
+                            outputs = displays
             # Check success status and return
             shell_msg = response["shell"]
             if shell_msg["status"] == "ok":

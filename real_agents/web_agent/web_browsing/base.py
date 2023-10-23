@@ -75,9 +75,7 @@ class WebotCallingChain(Chain, BaseModel):
             success = True
         except Exception:
             pattern = r"\```json\n(.+?)\n```" if "```json" in response else r"\```\n(.+?)\n```"
-            match = re.search(pattern, response, re.DOTALL)
-
-            if match:
+            if match := re.search(pattern, response, re.DOTALL):
                 json_content = json5.loads(match.group(1))
                 instruction = json_content["instruction"]
                 start_url = json_content["start_url"]

@@ -39,13 +39,12 @@ def initialize_agent(
         llm=llm, tools=tools, continue_model=continue_model, **agent_kwargs
     )
 
-    agent_executor = AgentExecutor.from_agent_and_tools(
+    return AgentExecutor.from_agent_and_tools(
         agent=agent_obj,
         tools=tools,
         return_intermediate_steps=return_intermediate_steps,
         **kwargs,
     )
-    return agent_executor
 
 
 def initialize_plugin_agent(
@@ -74,13 +73,12 @@ def initialize_plugin_agent(
         llm=llm, tools=tools, continue_model=continue_model, **agent_kwargs
     )
 
-    agent_executor = AgentExecutor.from_agent_and_tools(
+    return AgentExecutor.from_agent_and_tools(
         agent=agent_obj,
         tools=tools,
         return_intermediate_steps=return_intermediate_steps,
         **kwargs,
     )
-    return agent_executor
 
 
 def initialize_webot_agent(
@@ -109,10 +107,9 @@ def initialize_webot_agent(
         llm=llm, tools=tools, continue_model=continue_model, **agent_kwargs
     )
 
-    agent_executor = AgentExecutor.from_agent_and_tools(
+    return AgentExecutor.from_agent_and_tools(
         agent=agent_obj,
         tools=tools,
         return_intermediate_steps=return_intermediate_steps,
         **kwargs,
     )
-    return agent_executor

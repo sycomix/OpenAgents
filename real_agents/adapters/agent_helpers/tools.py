@@ -25,11 +25,10 @@ class Tool(BaseTool):
     def args(self) -> dict:
         if self.args_schema is not None:
             return self.args_schema.schema()["properties"]
-        else:
-            inferred_model = validate_arguments(self.func).model  # type: ignore
-            schema = inferred_model.schema()["properties"]
-            valid_keys = signature(self.func).parameters
-            return {k: schema[k] for k in valid_keys}
+        inferred_model = validate_arguments(self.func).model  # type: ignore
+        schema = inferred_model.schema()["properties"]
+        valid_keys = signature(self.func).parameters
+        return {k: schema[k] for k in valid_keys}
 
     def _run(self, *args: Any, **kwargs: Any) -> str:
         """Use the tool."""
@@ -59,11 +58,7 @@ class Tool(BaseTool):
     ) -> Any:
         """Run the tool."""
         parsed_input = self._parse_input(tool_input)
-        if not self.verbose and verbose is not None:
-            verbose_ = verbose
-        else:
-            verbose_ = self.verbose
-
+        verbose_ = self.verbose if self.verbose or verbose is None else verbose
         # todo: fix this place
         callback_manager = CallbackManager.configure(callbacks, self.callbacks, verbose=verbose_)
         # TODO: maybe also pass through run_manager is _run supports kwargs
@@ -168,7 +163,7 @@ def tool(
         # if the argument is a function, then we use the function name as the tool name
         # Example usage: @tool
         return _make_with_name(args[0].__name__)(args[0])
-    elif len(args) == 0:
+    elif not args:
         # if there are no arguments, then we use the function name as the tool name
         # Example usage: @tool(return_direct=True)
         def _partial(func: Callable[[str], str]) -> BaseTool:

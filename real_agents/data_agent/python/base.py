@@ -112,10 +112,7 @@ class PythonChain(Chain, BaseModel):
             if "```python:" in _raw_output:
                 pattern = r"```python\n{(.*?)}\n```"
                 match = re.search(pattern, _raw_output, re.DOTALL)
-                if match:
-                    return match.group(1)
-                else:
-                    return _raw_output
+                return match.group(1) if match else _raw_output
             else:
                 return _raw_output
 
@@ -132,7 +129,11 @@ class PythonChain(Chain, BaseModel):
         Since there will be error if we try to launch matplotlib GUI in the server,
         I add this line to avoid backend execution of matplotlib for now.
         """
-        result = repl.run(code + f"\n{self.get_answer_expr}", user_id=self.user_id, chat_id=self.chat_id)
+        result = repl.run(
+            f"{code}\n{self.get_answer_expr}",
+            user_id=self.user_id,
+            chat_id=self.chat_id,
+        )
 
         logger.bind(msg_head="PythonChain execution result").trace(result)
 

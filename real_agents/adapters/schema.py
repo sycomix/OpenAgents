@@ -22,10 +22,7 @@ class SQLDatabase(SQLDatabase):
         dicts = [dict(zip(headers, row)) for row in result]
         tab_result = tabulate(tabular_data=dicts, headers="keys", tablefmt="psql")
 
-        if tab_result == "":
-            return EMPTY_RESULT_STR
-
-        return tab_result
+        return EMPTY_RESULT_STR if tab_result == "" else tab_result
 
     def run(self, command: str, fetch: str = "all") -> str:
         """Execute a SQL command and return a string representing the results.
@@ -47,7 +44,5 @@ class SQLDatabase(SQLDatabase):
                 else:
                     raise ValueError("Fetch parameter must be either 'one' or 'all'")
 
-                # pretty format
-                tab_result = self._pretty_format(headers, result)
-                return tab_result
+                return self._pretty_format(headers, result)
         return ""

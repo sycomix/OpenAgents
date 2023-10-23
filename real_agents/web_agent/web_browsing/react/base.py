@@ -155,30 +155,27 @@ class ReActWebotChain(WebotChain):
         parsedAction = parsed_return["parsedAction"]
         action = parsed_return["action"]
         retry_message = ""
-        
+
         # check if the element id exists in the html (fixme: maybe more validity checking methods can be applied)
         if parsedAction["name"] == "click":
             elementId = parsedAction["args"].get("elementId", None)
             if elementId != None and str(elementId) in html:
                 return True, ""
-            else:
-                retry_message = "The elementId of your last action does not exist in the html, please try again."
-                return False, retry_message
+            retry_message = "The elementId of your last action does not exist in the html, please try again."
+            return False, retry_message
         elif parsedAction["name"] == "setValue":
             elementId = parsedAction["args"].get("elementId", None)
             value = parsedAction["args"].get("value", None)
             if elementId != None and value != None and str(elementId) in html:
                 return True, ""
-            else:
-                retry_message = "The elementId of your last action does not exist in the html, please try again."
-                return False, retry_message
+            retry_message = "The elementId of your last action does not exist in the html, please try again."
+            return False, retry_message
         elif "finish" in parsedAction["name"]:
             return True, ""
         elif "fail" in parsedAction["name"]:
             return True, ""
         elif "interrupt" in parsedAction["name"]:
             return True, ""
-        # parse error
         elif "error" in parsedAction["name"]:
             retry_message = "Action parse error, please follow the output format and try again."
             return False, retry_message
@@ -207,11 +204,11 @@ class ReActWebotChain(WebotChain):
         # Generate the prompt
         previous_actions_string = "\n".join(
             [
-                "<Thought>{}</Thought>\n<Action>{}</Action>".format(thought, action)
+                f"<Thought>{thought}</Thought>\n<Action>{action}</Action>"
                 for thought, action in zip(previous_thoughts, previous_actions)
             ]
         )
-        if len(previous_actions_string) > 0:
+        if previous_actions_string != "":
             previous_actions_string  = "You have already taken the following thoughts and actions:\n"+previous_actions_string
 
         user_prompt = f"The user requests the following task:\n {user_query}\nyou have taken these{previous_actions_string}\nCurrent time: {current_time}\nCurrent page contents:\n{processed_html}"
@@ -269,14 +266,8 @@ class ReActWebotChain(WebotChain):
             parsed_return.setdefault("message", "success")
 
             valid_action, retry_message = self._check_valid_action(processed_html, parsed_return)
-            
-        # if "error" not in parsed_return:
-            # logger.bind(msg_head="ReActWebotChain generated thought").trace(parsed_return["thought"])
-            # logger.bind(msg_head="ReActWebotChain generated action").trace(parsed_return["parsedAction"])
 
-        output = parsed_return
-
-        return output
+        return parsed_return
 
     @classmethod
     def from_llm(cls, llm: BaseLanguageModel, **kwargs: Any) -> WebotChain:

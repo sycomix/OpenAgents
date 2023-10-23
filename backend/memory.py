@@ -39,7 +39,7 @@ class UserMemoryManager:
                 self.redis_client = get_running_time_storage()
                 self.db_client = get_user_conversation_storage()
         else:
-            raise ValueError("Unknown backend option: {}".format(self.backend))
+            raise ValueError(f"Unknown backend option: {self.backend}")
 
     def get_pool_info_with_id(
         self,
@@ -49,10 +49,7 @@ class UserMemoryManager:
         """Gets the information with user_id and chat_id from the pool."""
         if self.backend == LOCAL:
             pool = self.memory_pool
-            if user_id in pool:
-                return pool[user_id]
-            else:
-                return default_value
+            return pool[user_id] if user_id in pool else default_value
         elif self.backend == DATABASE:
             memory_pool_name = f"{self.name}:{user_id}"
             if self.redis_client.exists(memory_pool_name):
@@ -68,9 +65,9 @@ class UserMemoryManager:
                         raise NotImplementedError(f"Currently only support message pool in database, not {self.name}")
                 except Exception as e:
                     # Not in database
-                    logger.bind(user_id=user_id, msg_head="Cache miss but not in database").warning(
-                        "Failed to get pool info from database: {}".format(e)
-                    )
+                    logger.bind(
+                        user_id=user_id, msg_head="Cache miss but not in database"
+                    ).warning(f"Failed to get pool info from database: {e}")
                     info = default_value
             return info
 
@@ -88,8 +85,7 @@ class UserMemoryManager:
     def __iter__(self):
         """Iterates over the memory pool."""
         if self.backend == LOCAL:
-            for user_id, info in self.memory_pool.items():
-                yield user_id, info
+            yield from self.memory_pool.items()
         elif self.backend == DATABASE:
             raise NotImplementedError("Currently not support UserMemoryManager iteration in database mode.")
 
@@ -126,7 +122,7 @@ class ChatMemoryManager:
                 self.redis_client = get_running_time_storage()
                 self.db_client = get_user_conversation_storage()
         else:
-            raise ValueError("Unknown backend option: {}".format(self.backend))
+            raise ValueError(f"Unknown backend option: {self.backend}")
 
     def get_pool_info_with_id(
         self,
@@ -164,7 +160,7 @@ class ChatMemoryManager:
                                 elif message["role"] == "assistant":
                                     message_type = AI_MESSAGE_KEY
                                 else:
-                                    raise ValueError("Unknown role: {}".format(message["role"]))
+                                    raise ValueError(f'Unknown role: {message["role"]}')
                                 info.append(
                                     {
                                         "message_id": message["message_id"],
@@ -180,9 +176,11 @@ class ChatMemoryManager:
                         raise NotImplementedError(f"Currently only support message pool in database, not {self.name}")
                 except Exception as e:
                     # Not in database
-                    logger.bind(user_id=user_id, chat_id=chat_id, msg_head="Cache miss but not in database").warning(
-                        "Failed to get pool info from database: {}".format(e)
-                    )
+                    logger.bind(
+                        user_id=user_id,
+                        chat_id=chat_id,
+                        msg_head="Cache miss but not in database",
+                    ).warning(f"Failed to get pool info from database: {e}")
                     info = default_value
             return info
 
@@ -243,7 +241,6 @@ class MessageMemoryManager(ChatMemoryManager):
             import traceback
 
             traceback.print_exc()
-            pass
 
     @staticmethod
     def save_agent_memory_to_list(agent_memory: BaseChatMemory) -> List[Dict[str, str]]:
@@ -292,5 +289,7 @@ class MessageMemoryManager(ChatMemoryManager):
                     break
             if not flag:
                 break
-        logger.bind(msg_head=f"get_activated_message_list").debug(activated_message_list)
+        logger.bind(msg_head="get_activated_message_list").debug(
+            activated_message_list
+        )
         return activated_message_list

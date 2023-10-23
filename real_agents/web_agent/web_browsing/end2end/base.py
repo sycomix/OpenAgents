@@ -78,6 +78,7 @@ class WebotChain(Chain, BaseModel):
         return formatted_actions
 
     def parse_response(self, text):
+
         class Argument:
             def __init__(self, name, arg_type):
                 self.name = name
@@ -138,8 +139,7 @@ class WebotChain(Chain, BaseModel):
 
             if expected_arg.type == "number":
                 try:
-                    number_value = int(arg)
-                    parsed_args[expected_arg.name] = number_value
+                    parsed_args[expected_arg.name] = int(arg)
                 except ValueError:
                     return {
                         "error": f'Invalid argument type: Expected a number for argument "{expected_arg.name}", but got "{arg}".'
@@ -174,17 +174,19 @@ class WebotChain(Chain, BaseModel):
         previous_actions = inputs["previous_actions"]
         user_query = inputs["user_query"]
         page_info = inputs["page_info"]
-        
+
         model = HTMLDataModel.from_raw_data(page_info)
         processed_html = model.get_llm_side_data()
 
         current_time = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # Generate the prompt
-        previous_actions_string = "\n".join(["<Action>{}</Action>".format(action) for action in previous_actions])
+        previous_actions_string = "\n".join(
+            [f"<Action>{action}</Action>" for action in previous_actions]
+        )
 
         user_prompt = f"The user requests the following task:\n {user_query}\n{previous_actions_string}\nCurrent time: {current_time}\nCurrent page contents:\n{processed_html}"
-        
+
         print("user_prompt",user_prompt)
 
         action = self.llm_basic_chain.run(
@@ -216,7 +218,7 @@ class WebotChain(Chain, BaseModel):
         return parsed_return
 
     def retry(self, plan, user_query, previous_actions_string, current_time, page_info: str, last_action: str) -> str:
-        action = self.llm_retry_chain.run(
+        return self.llm_retry_chain.run(
             **{
                 "formattedActions": self.formatted_actions,
                 "plan": plan,
@@ -227,7 +229,6 @@ class WebotChain(Chain, BaseModel):
                 "last_action": last_action,
             }
         )
-        return action
 
     @classmethod
     def create_basic_prompt(cls, system_prompt, user_prompt) -> BasePromptTemplate:

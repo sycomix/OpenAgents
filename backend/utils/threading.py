@@ -41,7 +41,6 @@ class ThreadManager:
             except Exception as e:
                 if not self.thread_pool[chat_id].is_alive():
                     self.stop_pool[chat_id] = True
-                pass
 
     def timeout_thread(self, chat_id) -> None:
         if chat_id in self.thread_pool and self.thread_pool[chat_id] is not None:
@@ -52,7 +51,6 @@ class ThreadManager:
             except Exception as e:
                 if not self.thread_pool[chat_id].is_alive():
                     self.timeout_pool[chat_id] = True
-                pass
 
     def error_thread(self, chat_id, e_msg: str) -> None:
         if chat_id in self.thread_pool and self.thread_pool[chat_id] is not None:

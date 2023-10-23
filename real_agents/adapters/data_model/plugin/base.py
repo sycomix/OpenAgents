@@ -26,8 +26,7 @@ class APIYamlModel(BaseModel):
         return cls(info=json_data)
 
     def to_yaml(self) -> Dict:
-        yaml_data = yaml.safe_dump(self.info, sort_keys=False)
-        return yaml_data
+        return yaml.safe_dump(self.info, sort_keys=False)
 
     def to_json(self) -> Dict:
         return self.info
@@ -39,13 +38,11 @@ class APIYamlModel(BaseModel):
         # json_data = yaml.safe_load(yaml_file)
         # there are #/xxxx/yyyy reference in openapi.yaml
         parsed = ResolvingParser(yaml_path, backend="openapi-spec-validator", strict=False)
-        json_data = json.loads(parsed.json())
-        return json_data
+        return json.loads(parsed.json())
 
     @staticmethod
     def json_to_yaml(json_path: str) -> Any:
         # Open the OpenAPI JSON file
         with open(json_path, "r") as json_file:
             json_data = json.load(json_file)
-            yaml_data = yaml.dump(json_data)
-            return yaml_data
+            return yaml.dump(json_data)
